@@ -1,6 +1,6 @@
 Included Utilities:
 =====================
-The jKuery patch.  This is just a copy of the patch that you installed. You can run it from here
+none
 
 Some suggestions for utilities:
 ==================================

@@ -31,8 +31,11 @@ class JkueryData{
     $this->json = ""; //TODO make this call a function to set it to an emtpy JSON object {} ;
     $this->debug = "true";
     $this->Log("constructed");
+
     if(!$this->validID()){
       $this->Log("invalid ID");
+      $this->message = "invalid ID";
+      $this->status = "fail";
     }
   } // end construct ; 
 
@@ -49,6 +52,7 @@ class JkueryData{
       $table = "JKUERY.JSON";
     }
     $sql = "select 1 ID from $table  where ID = $this->id UNION all select 0 ID";
+
     try{
       $db = dbConnect();
       return (bool)$db->GetOne($sql);
@@ -124,24 +128,29 @@ class JkueryData{
       // $sql is actually a JSON string here;
       $this->format = 0;
       if($this->validateJSON($sql) ){
-      $this->status  =  "success";
-      $this->json = $sql;
-      $this->printJSON();
+	$this->status  =  "success";
+	$this->json = $sql;
+	$this->printJSON();
       } else {
-      $this->status = "error";
+	$this->status = "error";
+	$this->fail();
       }
       break;
     case 'sqlpi': // similar to sqlp except when updating / inserting data;
       $stmt = $db->Prepare($sql);
       $this->format = 2; // special format here;
       if( $this->getData( $stmt, $this->p ) ) {
-      $this->format = 1;
-      $this->printJSON();
-    }
+	$this->format = 1;
+	$this->printJSON();
+      }  else {
+	$this->status = "fail";
+	$this->fail(false);
+      }
+	
     break;
   case 'sqlpJSON': // use for a special case to build where clause stored in a different ID ; 
     // iterate over the json items in the where variable;
-    // example where
+    // example where ;
     /*
      * where: {"whereclause0":{"conjunction":"","field":"HD_TICKET.CREATED","operator":" > date_sub(now(), interval 24 hour) "}} 
      */
@@ -201,6 +210,9 @@ break;
       $stmt = $db->GetOne("select $replacesql");
       if( $this->getData( $stmt, false ) ) {
       $this->printJSON();
+      } else {
+	$this->status = "fail";
+	$this->fail(false);
       }
       break;
     case 'rule': // use this when you want the rule referenced from JKUERY table ; 
@@ -208,13 +220,12 @@ break;
       $stmt = $this->getRuleStmt($this->p);
       if( $this->getData($stmt, $this->p) ){
       $this->printJSON();
+      } else {
+	$this->status = "fail";
+	$this->fail(false);
       }
       break; 
-    case 'loaded':
-      //TODO;
-      break;
     case 'sqlp': // most common case
-      $this->Log('*****************');
       $stmt = $db->Prepare($sql);
       $this->Log(print_r($stmt,true));
       if( $this->getData( $stmt, $this->p) ){
@@ -224,6 +235,11 @@ break;
       $this->status = "fail";
       $this->fail(false);
       }
+      break;
+    case 'loaded': //TODO;
+    default: 
+      $this->status = "fail";
+      $this->fail("invalid query type");
       break;
     } // end switch ;
   } // end getStmtFromType;
@@ -325,7 +341,11 @@ $this->Log("printing....");
       $stmt = $this->getRuleStmt();
       if($this->getData($stmt,$p)){
       $this->printJSON();
+      } else {
+	$this->status = "fail";
+	$this->fail(false);
       }
+
       break;
     case 'lookup':
     default:
@@ -357,6 +377,7 @@ break;
       } // end switch ; 
       $this->status="success";
     } catch (Exception $e) {
+      KBLog("error : ".$e->GetMessage();
       $this->status = "error";
       $this->message = "Error: ".$e->GetMessage();
       return false;

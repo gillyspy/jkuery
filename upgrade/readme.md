@@ -70,9 +70,8 @@ worry about when we will load it.
 * put all their css in one spot
 * have separate js either in specific portals (allowing for more complexity if they want it)
     OR  have js just in the root (good for specific, simpler sripts but less flexible).
-10. There is a data access component coming in version 2.0.  For now you might see a database 
-object called JSDD.JSON.  You can access it via ticket rules only for now.  But that's irrelevant
-for now
+* then load images and css via JS (e.g. jQuery.load('')  or insert HTML into DOM)
+10. There is a data access component.  
 
 How to disable jkuery:
 =======================
@@ -223,7 +222,7 @@ Revision History
   resource for professional services use
 
 2.0
-==
+===
 * using GIT depot
 * increase support for larger ID values in JKUERY.JSON table
 * added TOKENS database object for "authenticated"  remote access to jkuery.php 
@@ -235,6 +234,8 @@ Revision History
 * installer upgrades previous version to 2.0 
 * adds R/W customer access to JKUERY dbspace data via "jkuery" user
    using admin's web password (re-install jkuery kbin to update a changed password)
+* database setting (KBSYS.SETTINGS) for version and enabled or not
+* hidden files in samba share that www cannot access (good for readmes, tc)
 
 (future)
 ========

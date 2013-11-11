@@ -43,7 +43,7 @@ class JkueryData{
   } 
 
   public function validID(){
-    if($this->query_type = "rule"){
+    if($this->query_type == "rule"){
       $table = "HD_TICKET_RULE";
     } else {
       $table = "JKUERY.JSON";
@@ -247,11 +247,13 @@ break;
     } else {
       $where = " J.ID = ".$this->id;
     }
-    $_p_sql = "select replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') from JKUERY.JSON J ".
-    " join /*ORG implied */ HD_TICKET_RULE R on J.HD_TICKET_RULE_ID=R.ID ".
+    $_p_sql = "select replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') Q ,LEFT(NOTES,255) PURPOSE".
+      " from HD_TICKET_RULE R ".
+      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID ".
     "WHERE ".$where;
-    $p_sql = $db-> GetOne($_p_sql);
-    return $stmt = $db->Prepare($p_sql);
+    $p_sql = $db-> GetRow($_p_sql);
+    $this->purpose = $p_sql['PURPOSE'];
+    return $stmt = $db->Prepare($p_sql['Q']);
   } // end getRuleStmt;
 
   function changeORG(){

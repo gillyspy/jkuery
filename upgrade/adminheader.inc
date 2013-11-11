@@ -1,6 +1,7 @@
-s/^.*<\/head>/<\/head>\
+s/<\/head>/\
 <\?php \
 # jkuery enabled\
 include '..\/jkuery\/include\/jkuery.adminui.css.inc';\
 include '..\/jkuery\/include\/jkuery.adminui.js.inc';\
-?>/I
+?>\
+<\/head>/I

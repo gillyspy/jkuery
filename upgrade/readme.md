@@ -1,10 +1,10 @@
-Create by Gerald Gillespie 2012
-jkuery v1.1
+Created by Gerald Gillespie 2013
+jkuery v2.0
 readme.txt
 
 Welcome to jKuery!
 If you installed this then you are interested in using canned or developing your own 
-UI enhancements in the K1000. Some of the things you can do:
+UI enhancements or data-integrations in the K1000. Some of the things you can do:
 
 Features:
 ==========
@@ -70,9 +70,8 @@ worry about when we will load it.
 * put all their css in one spot
 * have separate js either in specific portals (allowing for more complexity if they want it)
     OR  have js just in the root (good for specific, simpler sripts but less flexible).
-10. There is a data access component coming in version 2.0.  For now you might see a database 
-object called JSDD.JSON.  You can access it via ticket rules only for now.  But that's irrelevant
-for now
+* then load images and css via JS (e.g. jQuery.load('')  or insert HTML into DOM)
+10. There is a data access component.  
 
 How to disable jkuery:
 =======================
@@ -168,7 +167,7 @@ relevant changes will trump them
 then what you expect this is due to the patch restoring a previous configuration. To fix this 
 simply open up the webui and click "edit" then "save".  No change is necessary.  
 It will redo your settings and be reconfigured without a reboot
-
+7. this will recreate any core libraries such as jkquery.min.js 
 
 Special Note about kbox upgrades
 =================================
@@ -182,6 +181,12 @@ This will re-link your scripts against the updated kbox files
 * or you were using names for your variables or functions in the global namespace and the kbox
 OEM javascript is now using that name.  TIP: use unique name and encapsulate as much of your work
 as you can
+* if you have made manual changes to config files (e.g. apache, samba) that include jkuery info 
+then that means when you reapply jkuery they will be undone because the backup that jkuery made 
+last time  will not have your customizations.  However, if you changed config files by 
+replacing them (e.g. a kbox upgrade or kbox patch) then those will be not have any jkuery 
+data in them and therefore will not be restored from backup and thus these config files will 
+only be augmented by jkuery (after being backed up first)
 
 Backing up your data
 =====================
@@ -197,4 +202,43 @@ What can I do with scripts
 ============================
 This is out of scope for this doc:See the \\k1000\jkuery\other\_examples directory, faqs, etc.  
 
+Revision History
+================
 
+1.0
+===
+* GA version
+* support and auto-linking for customer web files at /jkuery/www
+* RW access to www files via \\k1000\jkuery share
+* loading of all web resources to customer-designated, specific portals (user, admin, system) or globally
+
+1.1
+===
+* added installer in kbin form
+
+1.2
+===
+* added JKUERY database object and webservices via local, authenticated common/jkuery.php
+  resource for professional services use
+
+2.0
+===
+* using GIT depot
+* increase support for larger ID values in JKUERY.JSON table
+* added TOKENS database object for "authenticated"  remote access to jkuery.php 
+  (also will make necessary require policy updates to apache)
+* added REST style access to jkuery.php e.g.   https://k1000/jkuery/ID/parm1/parm2?extraparms=value
+* adds status codes, jkuery version, purpose and error messages to JSON output
+* adds ORG restrictions to JKUERY.JSON prepared statements
+* grants read access to KBSYS.NETWORK_SETTINGS to jkuery.php
+* installer upgrades previous version to 2.0 
+* adds R/W customer access to JKUERY dbspace data via "jkuery" user
+   using admin's web password (re-install jkuery kbin to update a changed password)
+* database setting (KBSYS.SETTINGS) for version and enabled or not
+* hidden files in samba share that www cannot access (good for readmes, tc)
+
+(future)
+========
+* support for K1000 6.0
+* support for K2000 ?.?
+* support for K3000 ?.?

@@ -1,17 +1,20 @@
 #!/bin/sh
 # This file generates the includes and then puts them into the headers of the appropriate kbox pages
 # /kbox/kboxwww/include
-#			/KAdminPageHeader.class.php
-#			/KPageHeader.class.php
-#			/KPrintablePageHeader.class.php
-#			/KSysPageHeader.class.php
-#			/KUserPageHeader.class.php
-#			/KWelcomePageHeader.class.php
-#			/KWelcomePageHeaderSys.class.php
+#/KAdminPageHeader.class.php
+#/KPageHeader.class.php
+#/KPrintablePageHeader.class.php
+#/KSysPageHeader.class.php
+#/KUserPageHeader.class.php
+#/KWelcomePageHeader.class.php
+#/KWelcomePageHeaderSys.class.php
+# TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
 
 #unpack marker files, default files, examples, etc
+#permissions will be updated below so -p is no longer necessary
+rm /kbox/kboxwww/common/*kuery*.php
 /usr/bin/tar -xkpf /kbackup/upgrade/jkuery_pkg.tgz -C /
 
 #create the symlink as the tar file created the real dir
@@ -22,7 +25,7 @@ rm $jk/include/jkuery*
 #build the includes based on all js scripts in the jkuery directory
 for f in *.js
 do
-	echo building links...
+    echo building links...
         echo '<script type="text/javascript" src="'$www$f'"></script>' >> $jk/include/jkuery.js.inc
 done
 for f in *.css
@@ -89,32 +92,32 @@ cd /kbox/kboxwww/include
 
 for f in K*Header*.php
 do 
-	cp /kbox/kboxwww/include/$f /kbox/kboxwww/include/$f.bak
+    cp /kbox/kboxwww/include/$f /kbox/kboxwww/include/$f.bak
 done
 
 cd $jk/www/markers
-for f in *KAdminPageHeader *KWelcomePageHeader
+for f in KAdminPageHeader KWelcomePageHeader
 do
-	sed -f /kbackup/upgrade/adminheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-	mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
+    sed -f /kbackup/upgrade/adminheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
+    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
 done
 
-for f in *KSysPageHeader *KWelcomePageHeaderSys
+for f in KSysPageHeader KWelcomePageHeaderSys
 do
-	sed -f /kbackup/upgrade/sysheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-	mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
+    sed -f /kbackup/upgrade/sysheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
+    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
 done
 
-for f in *KUserPageHeader
+for f in KUserPageHeader
 do
-	sed -f /kbackup/upgrade/userheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-	mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
+    sed -f /kbackup/upgrade/userheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
+    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
 done
 
 for f in K*Header
 do
-	sed -f /kbackup/upgrade/header.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-	mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
+    sed -f /kbackup/upgrade/header.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
+    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
 done
 
 # map a  samba share to file depot
@@ -139,26 +142,41 @@ grep -l "jkuery" /usr/local/etc/apache22/httpd.conf | xargs cp /usr/local/etc/ap
 grep -l "jkuery" /kbox/bin/kbserver/templates/httpd.conf.template | xargs cp /kbox/bin/kbserver/templates/httpd.conf.template.nojkuery
 grep -l "jkuery" /kbox/bin/kbserver/templates/httpd22.conf.template | xargs cp /kbox/bin/kbserver/templates/httpd22.conf.template.nojkuery
 
-#make a new backup (or first time backup most likely
-#apply jkuery changes to samba configuration file and template
-sed -I .nojkuery -f /kbackup/upgrade/httpd.sed.conf /usr/local/etc/apache2/httpd.conf
-sed -I .nojkuery -f /kbackup/upgrade/httpd.sed.conf /usr/local/etc/apache22/httpd.conf
-sed -I .nojkuery -f /kbackup/upgrade/httpd.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template
-sed -I .nojkuery -f /kbackup/upgrade/httpd22.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template
+#make a new backup (or first time backup most likely)
+#apply jkuery changes to apache configuration file and template
+cd /kbackup/upgrade
+sed -I .nojkuery -f ./httpd.sed.conf /usr/local/etc/apache2/httpd.conf
+sed -I .nojkuery -f ./httpd.sed.conf /usr/local/etc/apache22/httpd.conf
+sed -f ./httpd.2.sed.conf /usr/local/etc/apache2/httpd.conf > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /usr/local/etc/apache2/httpd.conf
+sed -f ./httpd.2.sed.conf /usr/local/etc/apache22/httpd.conf > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /usr/local/etc/apache22/httpd.conf
+
+sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template
+sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template
+
+#httpd.2.sed.conf is a dynamically generated file
+sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
+sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
 
 #TODO test permissions being correct in the tar file and set by the tar file extract instead
-#set permissions on all files
+#set permissions on all files from the tarball
 #all includes get 444 root:wheel
 #all www they are 644 root:wheel
-#chown root:wheel $jk/include/jkuery*
-#chmod 444 $jk/include/jkuery*
-#find $jk/www -type f -name "*" -exec chown root:wheel '{}' \;
-#find $jk/www -type f -name "*" -exec chmod 644 '{}' \;
+chown root:wheel $jk/include/jkuery*
+chmod 444 $jk/include/jkuery*
+chown root:wheel /kbox/kboxwww/common/*kuery*
+chmod 444 /kbox/kboxwww/common/*kuery*
+find $jk/www -type f -name "*" -exec chown root:wheel '{}' \;
+find $jk/www -type f -name "*" -exec chmod 644 '{}' \;
 #this makes it so you cannot edit these placeholders
-#find $jk/www -type f -name "default.css" -exec chmod 444 '{}' \;
-#find $jk/www -type f -name "default.js" -exec chmod 444 '{}' \;
+find $jk/www -type f -name "default.css" -exec chmod 444 '{}' \;
+find $jk/www -type f -name "default.js" -exec chmod 444 '{}' \;
 
-/usr/local/etc/rc.d/samba restart
-/usr/local/etc/rc.d/apache2 restart
-/usr/local/etc/rc.d/apache22 restart
+#v3 TODO move restart of apache to kbox_upgrade script
+#/usr/local/etc/rc.d/samba restart
+#/usr/local/etc/rc.d/apache2 restart
+#/usr/local/etc/rc.d/apache22 restart
 cd /kbackup/upgrade

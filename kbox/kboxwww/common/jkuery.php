@@ -35,12 +35,12 @@ function setParms($PARAMS, $OBJ){
 }
 // end setParms;
 
-$debug=true;
+$debug=false; //debug ; 
 //$debug ? KBLog(print_r($_SESSION,true)) : false ;
 //KBLog(print_r($_REQUEST,true));
 //KBLog(print_r($_GET,true));
 
-$PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username');
+$PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username','debug');
 /*
  * rule_id is deprecated.  now just use id and query_type = rule
  * is  the row in JKUERY.JSON that you want to work with
@@ -53,6 +53,7 @@ $PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p
 			"report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
 			while that would fail in reporting it is still allowed to be created
                         "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
+			"debug" 1 means that you will get extra debug info returned. 0 is off (default)
  * P* are the variables for a prepared statement. these are deprecated
  * p is an array of variables parsed from the REST-style URL
  */
@@ -61,6 +62,8 @@ $PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p
 //this set the $_p from the GET/POST;
 setParms($PARAMS, $_GET);
 setParms($PARAMS, $_POST);
+
+$debug = ($debug =="true" || $debug == "1" || $debug == "on" ) ? true : false;
 
 //this sets the $_p from the URL so it could overwrite $_p from above but apps should not use both techniques
 if(isset($_GET['p']) && (string)$_GET['p'] !=''){
@@ -80,9 +83,9 @@ if(isset($_SESSION[KB_ORG])){
 }
 
 $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
-KBLog('user: '.$_SESSION[KB_USER_ID]);
+//KBLog('user: '.$_SESSION[KB_USER_ID]);
 $referrer = $_SERVER[HTTP_ORIGIN];
-KBLog(print_r($_SESSION,true));
+//KBLog(print_r($_SESSION,true));
 $org_id = $org_id===0 ? 1 : $org_id;
 
 //KBLog(isset($_SESSION[KB_USER_ID]));
@@ -95,8 +98,9 @@ if(!$valid_session){
   }
 }
 
+KBlog("debug: ".$debug);
 if($valid_session){
-  $obj = new JkueryData($id, $query_type); // instantiate the class;
+  $obj = new JkueryData($id, $query_type,$debug); // instantiate the class;
   $db = dbConnect();
 
   // if a rule is provided then determine if that rule is providing JSON (auto) or if we need to build the JSON;
@@ -108,7 +112,7 @@ if($valid_session){
   }
 }else {
   KBLog('no session: failing');
-  $obj = new JkueryData(0, 'none'); //instantiate the class;
+  $obj = new JkueryData(0, 'none',$debug); //instantiate the class;
   $obj->fail("You do not have a valid session. Please authenticate and try again");
 }
 // end if valid_session;

@@ -29,5 +29,5 @@ echo "removing bin"
 echo "downloading kbin"
 /opt/local/bin/curl -o $TMP/$KBIN $FACTORY/tmp/$KBIN
 
-echo "$TMP/KBIN file created"
+echo "$TMP/$KBIN file created"
 echo "please apply to your test kbox"

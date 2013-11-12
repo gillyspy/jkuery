@@ -19,7 +19,7 @@ class JkueryData{
   public $p; //parms; 
   public $debug;
 
-  public function __construct($id,$query_type){
+  public function __construct($id,$query_type,$debug=false){
     $this->id = $id;
     $this->query_type = $query_type;
     $this->version = $this->getVersion(); 
@@ -29,7 +29,7 @@ class JkueryData{
     $this->purpose = "";
     $this->status = "success";
     $this->json = ""; //TODO make this call a function to set it to an emtpy JSON object {} ;
-    $this->debug = "true";
+    $this->debug = array('status' => $debug);
     $this->Log("constructed");
 
     if(!$this->validID()){
@@ -39,8 +39,33 @@ class JkueryData{
     }
   } // end construct ; 
 
+  private function setDebugSQL($sql){
+    if($this->debug['status']){
+      $this->debug['query'] = $sql;
+    } else {
+      $this->debug['query'] = '';
+    }
+  }
+
+  private function setDebugParms($p){
+    if($this->debug['status']){
+      $this->debug['parms'] = $p;
+    } else {
+      $this->debug['parms'] = array();
+    }
+  }
+
+  private function setDebugData(){
+    if($this->debug['status']){
+      //      $this->debug['query'] = "";
+      //      $this->debug['parms'] = array();
+      $this->debug['type'] = $this->query_type;
+    }
+    
+  } // end setDebugData ;
+
   private function Log($msg){
-    if($this->debug){
+    if($this->debug['status']){
       KBLog($msg);
     }
   } 
@@ -125,6 +150,10 @@ class JkueryData{
 
   public function getStmtFromType($sql,$type){
     $db = dbConnect();
+    $this->setDebugSQL($sql);
+    $this->setDebugParms($this->p);
+    $this->query_type = $type;
+    //TODO  debug['p'] ?     
     switch($type){
     case 'json': // use when you want straight well-formed JSON from the JKUERY.SQLstr;
       // $sql is actually a JSON string here;
@@ -238,13 +267,14 @@ break;
       break; 
     case 'sqlp': // most common case
       $stmt = $db->Prepare($sql);
-      $this->Log(print_r($stmt,true));
+      $this->Log("SQLP: ".print_r($stmt,true));
       if( $this->getData( $stmt, $this->p) ){
-      $this->status = "success";
-      $this->printJSON();
+	$this->Log("success");
+	$this->status = "success";
+	$this->printJSON();
       } else {
-      $this->status = "fail";
-      $this->fail(false);
+	$this->status = "fail";
+	$this->fail(false);
       }
       break;
     case 'loaded': //TODO;
@@ -279,6 +309,7 @@ break;
       " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID ".
     "WHERE ".$where;
     $p_sql = $db-> GetRow($_p_sql);
+    $this->setDebugSQL($p_sql['Q']);
     $this->purpose = $p_sql['PURPOSE'];
     return $stmt = $db->Prepare($p_sql['Q']);
   } // end getRuleStmt;
@@ -304,8 +335,9 @@ break;
       " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID ". // HD_TICKET_RULE for legacy reasons ;
       "WHERE ".$where;
 
-    KBLog('getReportStmt : '.$_p_sql);
+    $this->Log('getReportStmt : '.$_p_sql);
     $p_sql = $db-> GetRow($_p_sql);
+    $this->setDebugSQL($p_sql['Q']);
     $this->purpose = $p_sql['PURPOSE'];
 
     $sql = $db->Prepare($p_sql['Q']) . $limit;
@@ -321,6 +353,7 @@ break;
   private function formatJSON(){
     $this->Log("formatting...");
     $this->Log($this->format);
+    $this->setDebugData();
     /* need the following set and then printJSON() can be called instead
      * version 
      * jdata
@@ -329,42 +362,21 @@ break;
      * format
      * status
      */
-    switch($this->format){ 
-    case 0:
-      $message = isset($this->message) ? ', "message" : "'.$this->message.'"' : '';
-      $ver = isset($this->version) ? ', "version" : "'.$this->version.'"' : '';
-      $purpose = isset($this->purpose) ? ', "purpose" : "'.$this->purpose.'"' : '';
-      $r = '{  "status" : "'.$this->status.'" '.$message.$ver.$purpose.', "json" : '.$this->json.'}';
-      $this->Log($r);
-      $validj =json_decode($r);
-      $json = json_encode($validj);
-      break;
-    case 1:
-    default:
-      $r = array();
-      if(isset($this->message)){
-      $r['message'] = $this->message;
-      }
-      if(isset($this->version)){
-      $r['version'] = $this->version;
-      }
-      if(isset($this->purpose)){
-      $r['purpose'] = $this->purpose;
-      }
-      $r['status'] = $this->status;
-      $r['json'] = $this->json;
-      //$_json = new Services_JSON();
-      //$json = $_json->encode($r);
-      $json = json_encode($r,  JSON_FORCE_OBJECT);
-      break;
-      //        default:;
-      //         throw(new Exception("unknown jformat: $jautoformat"));
+    $r = array();
+    $r['message'] = isset($this->message)? $this->message : '';
+    $r['version'] = isset($this->version) ? $this->version : '';
+    $r['purpose'] = isset($this->purpose) ? $this->purpose : '';
+    $r['status'] = isset($this->status) ? $this->status : 'error';
+    if($this->debug['status']){
+      $r['debug'] = $this->debug;
     }
-    return $json;
+    $r['count'] = count(json_decode($this->json,true));
+    $r['json'] = $this->format == 0 ? json_decode($this->json,true) : $this->json;
+    return json_encode($r,  JSON_FORCE_OBJECT);
   } // end formatJSON;
 
   public function printJSON(){
-$this->Log("printing....");
+    $this->Log("printing....");
     header("Cache-Control: no-cache, must-revalidate");
     header("Expires: 0");
     header("Content-type: text/javascript");
@@ -373,6 +385,7 @@ $this->Log("printing....");
 
   public function sourceType($p,$jautoformat){
     $this->format = $jautoformat;
+    $this->setDebugParms($p);
     $this->p = $p;
     switch($this->query_type){
     case 'rule':
@@ -380,7 +393,6 @@ $this->Log("printing....");
        * use this when your source is a ticket rule -- you might not even have anything stored in JKUERY table ;
        *  this does not cover the scenario when you want to reference  rule from JKUERY table;
        */
-      $this->p = $p;
       $stmt = $this->getRuleStmt();
       if($this->getData($stmt,$p)){
       $this->printJSON();
@@ -395,7 +407,6 @@ $this->Log("printing....");
        * use this when your source is a smarty report  -- you might not even have anything stored in JKUERY table ;
        *  this does not cover the scenario when you want to reference  rule from JKUERY table;
        */
-      $this->p = $p;
       $stmt = $this->getReportStmt($this->p);
       if($this->getData($stmt)){
       $this->printJSON();
@@ -434,7 +445,7 @@ break;
       } // end switch ; 
       $this->status="success";
     } catch (Exception $e) {
-      KBLog("error : ".$e->GetMessage());
+      $this->Log("error : ".$e->GetMessage());
       $this->status = "error";
       $this->message = "Error: ".$e->GetMessage();
       return false;

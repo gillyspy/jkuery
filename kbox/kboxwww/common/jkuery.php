@@ -2,30 +2,7 @@
 
 require 'JkueryData.class.php';
 require 'JkueryUser.class.php';
-/* 
- * this service queries a custom JSON table to retreive a query or string that will generate JSON formatted result
- *
- * some example URLs to access this service are: 
- *  using prepared query 105 passing parm "Gerald" and "kace.com"
- http://k1000/common/jkuery.php?id=105&query_type=sqlp&p1=Gerald&p2=kace.com
- http://k1000/jkuery/105/Gerald/kace.com
- *
- * using select query from rule #43 in current org.  passing  ticket_change#2 as parameter for <CHANGE_ID>  Allowing the result to be auto-converted into json
- http://k1000/common/jkuery.php?rule_id=43&query_type=rule&p1=2
- http://k1000/rule/43/2
- *
- * using select query from rule #50. Forcing the formatted result to be provided by the rule'squery.  passing no parameter
- http://k1000/common/jkuery.php?rule_id=50&query_type=rule&p1=false&org_id=2&jautoformat=0
- http://k1000/jkuery/X?query_type=lookup&jautoformat=0
- (note X would be a JKUERY.JSON reference to 50)
- *
- * using select query from whatever ticket rule is tied to JKUERY rule#1000. passing change #10
- http://k1000/common/jkuery.php?id=1000&query_type=rule&p1=10
- http://k1000/jkuery/1000/10?query_type=lookup
- *
- * using select query from REPORT ID 25 (does not work with tiered reports)
- http://k1000/report/25
-*/
+
 session_write_close();
 
 $_query = array();

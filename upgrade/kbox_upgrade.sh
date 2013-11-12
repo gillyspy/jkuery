@@ -308,17 +308,27 @@ N
 N
 N
 N
-s/<Directory \\/>.*/SetEnvIf Origin "$rgx" ORIGIN_SUB_DOMAIN\\=\\$1\x5c
+N
+N
+N
+N
+N
+N
+s/\\(<Directory \\/>.*\\)\\(RewriteEngine on\\)/SetEnvIf Origin "$rgx" ORIGIN_SUB_DOMAIN\\=\\$1\x5c
 \x5c
-<Directory \\/>\x5c
-    Options FollowSymLinks\x5c
-    AllowOverride None\x5c
+\\1\x5c
     Header set Access-Control-Allow-Origin "%\\{ORIGIN_SUB_DOMAIN\\}e" env\\=ORIGIN_SUB_DOMAIN\x5c
-    RewriteEngine On\x5c
+    \\2\x5c
 \x5c
     \\#Support REST style URLs for jkuery.php\x5c
-    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2 \\[QSA,L\\]\x5c
-    RewriteRule \\^kbox\\/kboxwww\\/rule\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=rule\\[QSA,L\\]/g
+    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=lookup \\[QSA,L\\]\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/rule\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=rule \\[QSA,L\\]\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/report\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=report \\[QSA,L\\]\x5c
+    \\#give 404 on any documents starting with underscore from the jKuery samba share \\"other\\" directory.\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/www\\/other\\/_\\.\\*\\$ kbox\\/kboxwww\\/common\\/404.php \\[L\\]\x5c
+\x5c
+    \\#non-jkuery rewrite rules\x5c
+/g
 }
 EOT;
    

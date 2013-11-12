@@ -2,24 +2,7 @@
 
 require 'JkueryData.class.php';
 require 'JkueryUser.class.php';
-/* 
- * this service queries a custom JSON table to retreive a query or string that will generate JSON formatted result
- *
- * some example URLs to access this service are: 
- *  using prepared query 105 passing parm "Gerald" and "kace.com"
- http://k1000/common/jkuery.php?id=105&query_type=sqlp&p1=Gerald&p2=kace.com
- http://k1000/jkuery/105/Gerald/kace.com
- *
- * using select query from rule #43 in org1.  passing  ticket_change#2 as parameter for <CHANGE_ID>  Allowing the result to be auto-converted into json
- http://k1000/common/jkuery.php?rule_id=43&query_type=rule&p1=2
- *
- * using select query from rule #50 in org2. Forcing the formatted result to be provided by the rule'squery.  passing no parameter
- http://k1000/common/jkuery.php?rule_id=50&query_type=rule&p1=false&org_id=2&jautoformat=0
- *
- * using select query from whatever ticket rule is tied to JKWUERY rule#1000. passing change #10
- http://k1000/common/jkuery.php?id=1000&query_type=rule&p1=10
- http://k1000/jkuery/1000/10?query_type=rule
-*/
+
 session_write_close();
 
 $_query = array();
@@ -66,7 +49,9 @@ $PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p
                         "json" means you want to get the cached json data
                         "sqlp" mean you want to use the prepared statement
                         "sql" mean you want to execute a canned statement with variables
-                        "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+		        "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+			"report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
+			while that would fail in reporting it is still allowed to be created
                         "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
  * P* are the variables for a prepared statement. these are deprecated
  * p is an array of variables parsed from the REST-style URL

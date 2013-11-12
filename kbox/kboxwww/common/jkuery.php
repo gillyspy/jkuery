@@ -66,7 +66,9 @@ $PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p
                         "json" means you want to get the cached json data
                         "sqlp" mean you want to use the prepared statement
                         "sql" mean you want to execute a canned statement with variables
-                        "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+		        "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+			"report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
+			while that would fail in reporting it is still allowed to be created
                         "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
  * P* are the variables for a prepared statement. these are deprecated
  * p is an array of variables parsed from the REST-style URL

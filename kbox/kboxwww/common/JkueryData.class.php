@@ -48,6 +48,8 @@ class JkueryData{
   public function validID(){
     if($this->query_type == "rule"){
       $table = "HD_TICKET_RULE";
+    } elseif($this->query_type == "report") {
+      $table = "SMARTY_REPORT";
     } else {
       $table = "JKUERY.JSON";
     }
@@ -58,7 +60,7 @@ class JkueryData{
       return (bool)$db->GetOne($sql);
     } catch (Exception $e) {
       $db = dbConnectSys();
-      if($this->query_type == "rule"){
+      if(preg_match('/^(rule|report)$/',$this->query_type) == 1 ){
 	$this->message = "Not logged in to any ORG". $e->GetMessage();
 	return false;
       } else {
@@ -215,6 +217,15 @@ break;
 	$this->fail(false);
       }
       break;
+    case 'report': // similar to rule but from SMARTY_REPORT table;
+      $stmt = $this->getReportStmt($this->p);
+      if( $this->getData($stmt, $this->p) ){
+	$this->printJSON();
+      } else {
+	$this->status = "fail";
+	$this->fail(false);
+      }
+      break;
     case 'rule': // use this when you want the rule referenced from JKUERY table ; 
       // for example if you want a rule from another ORG ; 
       $stmt = $this->getRuleStmt($this->p);
@@ -271,6 +282,37 @@ break;
     $this->purpose = $p_sql['PURPOSE'];
     return $stmt = $db->Prepare($p_sql['Q']);
   } // end getRuleStmt;
+ 
+
+  public function getReportStmt($p=false){
+    $db = dbConnect();
+    if($this->query_type == "report"){
+      $where = " R.ID = ".$this->id;
+    } else {
+      $where = " J.ID = ".$this->id;
+    }
+
+    $limit = '';
+    $upper = (int)$p[1];
+    $lower = (int)$p[0];
+    if($upper > 0){
+      $limit = " LIMIT $lower, $upper";
+    }
+
+    $_p_sql = "select QUERY Q, left(DESCRIPTION,255) PURPOSE ".
+      " from SMARTY_REPORT R ".
+      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID ". // HD_TICKET_RULE for legacy reasons ;
+      "WHERE ".$where;
+
+    KBLog('getReportStmt : '.$_p_sql);
+    $p_sql = $db-> GetRow($_p_sql);
+    $this->purpose = $p_sql['PURPOSE'];
+
+    $sql = $db->Prepare($p_sql['Q']) . $limit;
+    return $sql;
+  } // end getReportStmt
+
+
 
   function changeORG(){
     return true; 
@@ -292,14 +334,14 @@ break;
       $message = isset($this->message) ? ', "message" : "'.$this->message.'"' : '';
       $ver = isset($this->version) ? ', "version" : "'.$this->version.'"' : '';
       $purpose = isset($this->purpose) ? ', "purpose" : "'.$this->purpose.'"' : '';
-      $r = '{ "json" : '.$this->json.', "status" : "'.$this->status.'" '.$message.$ver.$purpose.'}';
+      $r = '{  "status" : "'.$this->status.'" '.$message.$ver.$purpose.', "json" : '.$this->json.'}';
       $this->Log($r);
       $validj =json_decode($r);
       $json = json_encode($validj);
       break;
     case 1:
     default:
-      $r = array('json' => $this->json);
+      $r = array();
       if(isset($this->message)){
       $r['message'] = $this->message;
       }
@@ -310,6 +352,7 @@ break;
       $r['purpose'] = $this->purpose;
       }
       $r['status'] = $this->status;
+      $r['json'] = $this->json;
       //$_json = new Services_JSON();
       //$json = $_json->encode($r);
       $json = json_encode($r,  JSON_FORCE_OBJECT);
@@ -347,6 +390,20 @@ $this->Log("printing....");
       }
 
       break;
+    case 'report':
+      /*
+       * use this when your source is a smarty report  -- you might not even have anything stored in JKUERY table ;
+       *  this does not cover the scenario when you want to reference  rule from JKUERY table;
+       */
+      $this->p = $p;
+      $stmt = $this->getReportStmt($this->p);
+      if($this->getData($stmt)){
+      $this->printJSON();
+      } else {
+	$this->status = "fail";
+	$this->fail(false);
+      }
+      break;
     case 'lookup':
     default:
       // use this when you want to lookup the prepared object via JKUERY tables;
@@ -377,7 +434,7 @@ break;
       } // end switch ; 
       $this->status="success";
     } catch (Exception $e) {
-      KBLog("error : ".$e->GetMessage();
+      KBLog("error : ".$e->GetMessage());
       $this->status = "error";
       $this->message = "Error: ".$e->GetMessage();
       return false;

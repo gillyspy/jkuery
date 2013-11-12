@@ -71,7 +71,63 @@ worry about when we will load it.
 * have separate js either in specific portals (allowing for more complexity if they want it)
     OR  have js just in the root (good for specific, simpler sripts but less flexible).
 * then load images and css via JS (e.g. jQuery.load('')  or insert HTML into DOM)
-10. There is a data access component.  
+10. There is a data access component.  see separate section on that
+
+Data Access component:
+=====================
+You can pull data out of the kbox into JSON format.  The data can be a stored JSON object (static 
+string) or a query that builds a JSON object, with optional query parameters.  Queries can be pulled
+from the custom JKUERY.JSON table, ticket rules and reports
+
+When you have a stored query you can return the result as JSON by issuing a web request.  
+
+Let's say you wanted to get USER data for USER_NAME=Gerald. Your URL would be something like:
+this is a USER report limited to USER_NAME=Gerald)
+The JSON that might come back might look like this:
+{   
+    "message":"",
+    "version":"2.0",
+    "purpose":"this is from smarty!",
+    "status":"success",
+    "json":
+    {	
+    	"1":
+	{
+                "ID":"35",
+		"USER_NAME":"Gerald",
+		"PASSWORD":"*",
+		"EMAIL":"gerald@kace.com",
+		"BUDGET_CODE":"",
+		"DOMAIN":"",
+		"FULL_NAME":"Gerald Gillespie",
+		"MODIFIED":"2013-11-06 10:31:22"
+		...
+	}				
+    }				
+}
+
+some other example URLs to access this service are: 
+
+*  using prepared query 105 passing parm "Gerald" and "kace.com"
+ http://k1000/common/jkuery.php?id=105&query_type=sqlp&p1=Gerald&p2=kace.com
+ http://k1000/jkuery/105/Gerald/kace.com
+
+* using select query from rule #43 in current org.  passing  ticket_change#2 as parameter for <CHANGE_ID>  
+ Allowing the result to be auto-converted into json
+ http://k1000/common/jkuery.php?rule_id=43&query_type=rule&p1=2
+ http://k1000/rule/43/2
+
+* using select query from rule #50. Forcing the formatted result to be provided by the rule'squery.  passing no parameter
+ http://k1000/common/jkuery.php?rule_id=50&query_type=rule&p1=false&org_id=2&jautoformat=0
+ http://k1000/jkuery/X?query_type=lookup&jautoformat=0
+ (note X would be a JKUERY.JSON reference to 50)
+
+* using select query from whatever ticket rule is tied to JKUERY rule#1000. passing change #10
+ http://k1000/common/jkuery.php?id=1000&query_type=rule&p1=10
+ http://k1000/jkuery/1000/10?query_type=lookup
+
+* using select query from REPORT ID 25 (does not work with tiered reports)
+ http://k1000/report/25
 
 How to disable jkuery:
 =======================
@@ -106,13 +162,13 @@ in order to activate scripts that you provide you will need to remove the ".rena
 create a file in the markers directory without that extension. e.g. "KAdminPageHeader"
 Afer that, if you have any scripts in the \adminui dir then you can reapply the patch and your 
 scripts will be linked (active).  Here is a mapping to which files work on which dir:
-KPrintablePageHeader :  \not specific to any portal
-KPageHeader					:		\not relevant at this time
-KAdminPageHeader   	:		\adminui
-KWelcomePageHeader 	:		\adminui
-KSysPageHeader			:		\systemui
-KWelcomePageHeaderSys:	\systemui
-KUserPageHeader			:		\userui
+KPrintablePageHeader   : \not specific to any portal
+KPageHeader	       : \not relevant at this time
+KAdminPageHeader       : \adminui
+KWelcomePageHeader     : \adminui
+KSysPageHeader	       : \systemui
+KWelcomePageHeaderSys  : \systemui
+KUserPageHeader	       : \userui
 
 Example of activating a script only on the main Admin interface but not on the admin welcome page:
 \adminui\myscript.js
@@ -237,6 +293,11 @@ Revision History
 * database setting (KBSYS.SETTINGS) for version and enabled or not
 * hidden files in samba share that www cannot access (good for readmes, tc)
 
+2.1
+===
+* get JSON data out of Kbox reports.  can specify a limiter for # of records
+  e.g. records 10 to 30 of computers stored in report 5 is requested as:
+  http://k1000/report/5/10/20
 (future)
 ========
 * support for K1000 6.0

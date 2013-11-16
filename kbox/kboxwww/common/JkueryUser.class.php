@@ -8,31 +8,50 @@ class JkueryUser extends KUser {
   public function __construct(){
   }
 
-  public static  function LoginUserWithJkuery($username,$org_id,$token="everyone",$referrer="everyone"){
+  public static  function LoginUserWithJkuery($token="everyone",$referrer="everyone"){
     $authenticated = false;
     $dbSys = dbConnectSys();
     $token = esc_sql($token);
     $referrer = esc_sql((string)$referrer);
-    $username = esc_sql($username);
-    $sql = "select 1 SUCCESS from JKUERY.TOKENS where TOKEN = $token and $referrer rlike ORIGIN  union all select 0 SUCCESS";
-    $success = (bool)($dbSys->GetOne($sql));
-    KBLog('success: '.$success. ' '.$sql);
-    if($success){
-      if(($username) && ($org_id > 0)) {
-	// here is where we set the login organization
-	$org = setCurrentOrgForId($org_id);
-	if(!empty($org)) {
-	  $user = $dbSys->GetRow("select * from $org[DB].USER where USER_NAME= $username");
+    $sql = <<<EOT
+	select 1 SUCCESS, JT.ORG_ID, JT.USER_ID
+            from
+	    JKUERY.TOKENS
+	    join
+	    JKUERY.JSON_TOKENS_JT JT ON JT.TOKENS_ID = TOKENS.ID
+	    where
+	    USER_ID > 0 
+	    and TOKEN = $token
+	    and $referrer rlike ORIGIN
+	    union all select 0 SUCCESS, 1 ORG_ID, 0 USER_ID
+EOT;
 
+    $res = $dbSys->GetRow($sql);
+    $success = (bool)$res['SUCCESS'];
+    $uid = (int)$res['USER_ID'];
+    $org_id = (int)$res['ORG_ID'];
+    if($success){
+      if(($uid > 0 ) && ($org_id > 0)) {
+	// here is where we set the login organization ;
+	$org = setCurrentOrgForId($org_id);
+	if(!empty($org) ) {
+	  $user = $dbSys->GetRow("select * from $org[DB].USER where ID = $uid");
 	}
       }
-      // calling setusersession here either sets or clears out the current session
+      // calling setusersession here either sets or clears out the current session ; 
       self::SetUserSession($user);
       if(!empty($user)) {
 	$authenticated = true;
       }
-    } // end if success
+    } // end if success ;
     return $authenticated; 
-  } // end LoginUserWithJkuery
+   } // end LoginUserWithJkuery ;
+
+  public static function userlabelAllowedJSON($userid,$org_id,$jid){
+    /* both a token and a user session end up getting mapped (via a user id) to a label */
+    $dbSys = dbConnectSys();
+    $sql = "select 1 from JKUERY.JSON_LABEL_JT JL join ORG$org_id.LABEL L on JL.LABEL_ID = L.ID and JL.ORG_ID = $org_id";
+    return (bool)($dbSys->GetOne($sql));
+  }
 }
 ?>

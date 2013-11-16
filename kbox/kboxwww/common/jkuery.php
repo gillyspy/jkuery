@@ -80,27 +80,38 @@ $jautoformat = isset($jautoformat) ? (int)$jautoformat : 1; // default is 1:auto
 if(isset($_SESSION[KB_ORG])){
   $org = setCurrentOrgForName($_SESSION[KB_ORG]);
   $org_id = $org[ID];
+} else {
+  $org = setCurrentOrgForID(1);
+  $org_id = 1;
 }
 
 $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
 //KBLog('user: '.$_SESSION[KB_USER_ID]);
 $referrer = $_SERVER[HTTP_ORIGIN];
 //KBLog(print_r($_SESSION,true));
-$org_id = $org_id===0 ? 1 : $org_id;
 
 //KBLog(isset($_SESSION[KB_USER_ID]));
 if(!$valid_session){
   // try a token auth;
     if($token){
-    $valid_session = JkueryUser::LoginUserWithJkuery($username,$org_id,$token,$referrer);
-    //    KBLog('Origin: '.$_SERVER[HTTP_ORIGIN] );
-    //    KBLog(print_r($_SERVER,true));
+      $valid_session = JkueryUser::LoginUserWithJkuery($token,$referrer);
+
+      
+      //    KBLog('Origin: '.$_SERVER[HTTP_ORIGIN] );
+      //    KBLog(print_r($_SERVER,true));
   }
 }
+KBLog('************************');
+KBLog(print_r($_SESSION,true) );
+if($valid_session){
+  $validRequest = JKueryUser::userlabelAllowedJSON($_SESSION[KB_USER_ID],$org_id,$id);
+}
+
+
 
 KBlog("debug: ".$debug);
-if($valid_session){
-  $obj = new JkueryData($id, $query_type,$debug); // instantiate the class;
+if($valid_session && $validRequest){
+  $obj = new JkueryData($id,$orgid,$query_type,$debug); // instantiate the class;
   $db = dbConnect();
 
   // if a rule is provided then determine if that rule is providing JSON (auto) or if we need to build the JSON;
@@ -110,10 +121,15 @@ if($valid_session){
   } else {
     $obj->fail("Invalid request ID: $obj->id");
   }
-}else {
+}elseif(!$valid_session){
+  
   KBLog('no session: failing');
-  $obj = new JkueryData(0, 'none',$debug); //instantiate the class;
-  $obj->fail("You do not have a valid session. Please authenticate and try again");
+  $obj = new JkueryData(0,0, 'none',$debug); //instantiate the class;
+  $obj->fail("You do not have a valid session. Please authenticate  and try again");
+} else {
+  KBLog('invalid ID');
+  $obj = new JkueryData(0,0,'none',$debug);
+  $obj->fail("Invalid request ID: $obj->id");
 }
 // end if valid_session;
 ?>

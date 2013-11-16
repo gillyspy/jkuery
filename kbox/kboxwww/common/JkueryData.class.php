@@ -7,23 +7,23 @@ require_once 'JSON.php';
 class JkueryData{
 
   //variables ;
-  public $message;
-  public $status;
-  public $json;
+  private $message;
+  private $status;
+  private $json;
   public $id;
-  public $query_type;
-  public $version;
-  public $org;
-  public $purpose;
-  public $format;
-  public $p; //parms; 
-  public $debug;
+  private $query_type;
+  private $version;
+  private $org;
+  private $purpose;
+  private $format;
+  private $p; //parms; 
+  private $debug;
 
-  public function __construct($id,$query_type,$debug=false){
+  public function __construct($id,$org_id,$query_type,$debug=false){
     $this->id = $id;
     $this->query_type = $query_type;
     $this->version = $this->getVersion(); 
-    $this->org = ""; //TODO get ORG from id for now; 
+    $this->org = (int)$org_id; //TODO get ORG from id for now; 
     $this->message = "";
     $this->format = 1;
     $this->purpose = "";
@@ -31,6 +31,7 @@ class JkueryData{
     $this->json = ""; //TODO make this call a function to set it to an emtpy JSON object {} ;
     $this->debug = array('status' => $debug);
     $this->Log("constructed");
+
 
     if(!$this->validID()){
       $this->Log("invalid ID");
@@ -304,10 +305,13 @@ break;
     } else {
       $where = " J.ID = ".$this->id;
     }
-    $_p_sql = "select replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') Q ,LEFT(NOTES,255) PURPOSE".
-      " from HD_TICKET_RULE R ".
-      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID ".
-    "WHERE ".$where;
+    $_p_sql = <<<EOT
+	select replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') Q ,LEFT(NOTES,255) PURPOSE
+      	from HD_TICKET_RULE R 
+      	left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID 
+    	WHERE $where
+EOT;
+
     $p_sql = $db-> GetRow($_p_sql);
     $this->setDebugSQL($p_sql['Q']);
     $this->purpose = $p_sql['PURPOSE'];
@@ -330,10 +334,12 @@ break;
       $limit = " LIMIT $lower, $upper";
     }
 
-    $_p_sql = "select QUERY Q, left(DESCRIPTION,255) PURPOSE ".
-      " from SMARTY_REPORT R ".
-      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID ". // HD_TICKET_RULE for legacy reasons ;
-      "WHERE ".$where;
+    $_p_sql = <<<EOT
+	select QUERY Q, left(DESCRIPTION,255) PURPOSE 
+      	from SMARTY_REPORT R 
+      	left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID 
+      	WHERE $where
+EOT;
 
     $this->Log('getReportStmt : '.$_p_sql);
     $p_sql = $db-> GetRow($_p_sql);
@@ -367,10 +373,10 @@ break;
     $r['version'] = isset($this->version) ? $this->version : '';
     $r['purpose'] = isset($this->purpose) ? $this->purpose : '';
     $r['status'] = isset($this->status) ? $this->status : 'error';
+    $r['count'] = $this->format == 0 ? count(json_decode($this->json,true)) : count($this->json);
     if($this->debug['status']){
       $r['debug'] = $this->debug;
     }
-    $r['count'] = count(json_decode($this->json,true));
     $r['json'] = $this->format == 0 ? json_decode($this->json,true) : $this->json;
     return json_encode($r,  JSON_FORCE_OBJECT);
   } // end formatJSON;

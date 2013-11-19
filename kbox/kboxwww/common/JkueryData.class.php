@@ -7,23 +7,23 @@ require_once 'JSON.php';
 class JkueryData{
 
   //variables ;
-  public $message;
-  public $status;
-  public $json;
-  public $id;
-  public $query_type;
-  public $version;
-  public $org;
-  public $purpose;
-  public $format;
-  public $p; //parms; 
-  public $debug;
+  private $message;
+  private $status;
+  private $json;
+  private $id;
+  private $query_type;
+  private $version;
+  private $org;
+  private $purpose;
+  private $format;
+  private $p; //parms; 
+  private $debug;
 
-  public function __construct($id,$query_type,$debug=false){
+  public function __construct($id,$org_id,$query_type,$debug=false){
     $this->id = $id;
     $this->query_type = $query_type;
     $this->version = $this->getVersion(); 
-    $this->org = ""; //TODO get ORG from id for now; 
+    $this->org = (int)$org_id; //TODO get ORG from id for now; 
     $this->message = "";
     $this->format = 1;
     $this->purpose = "";
@@ -31,6 +31,7 @@ class JkueryData{
     $this->json = ""; //TODO make this call a function to set it to an emtpy JSON object {} ;
     $this->debug = array('status' => $debug);
     $this->Log("constructed");
+
 
     if(!$this->validID()){
       $this->Log("invalid ID");
@@ -70,6 +71,8 @@ class JkueryData{
     }
   } 
 
+
+
   public function validID(){
     if($this->query_type == "rule"){
       $table = "HD_TICKET_RULE";
@@ -79,7 +82,7 @@ class JkueryData{
       $table = "JKUERY.JSON";
     }
     $sql = "select 1 ID from $table  where ID = $this->id UNION all select 0 ID";
-
+    $this->Log($sql);
     try{
       $db = dbConnect();
       return (bool)$db->GetOne($sql);
@@ -94,6 +97,61 @@ class JkueryData{
       }
     }
   }
+
+  public function userlabelAllowedJSON($userid){
+    /* both a token and a user session end up getting mapped (via a user id) to a label */
+
+    /* for a rule or report we need an entry in the JKUERY.JSON table to match to the TOKEN 
+     * so check type and see if a match can be found
+     */ 
+    
+    $dbSys = dbConnectSys();
+    switch($this->query_type){
+    case 'rule':
+      $sql = <<<EOT
+	select 1 from JKUERY.TOKENS T
+	join JKUERY.JSON_TOKENS_JT JT on T.ID = JT.TOKENS_ID
+	join JKUERY.JSON J on J.ID = JT.JSON_ID
+	join JKUERY.JSON_LABEL_JT JL on JL.JSON_ID = J.ID
+	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID and UL.USER_ID = JT.USER_ID
+	join ORG$this->org.HD_TICKET_RULE R on R.ID = J.HD_TICKET_RULE_ID
+	where 
+	$this->id = R.ID
+	and UL.USER_ID = $userid
+	and JL.ORG_ID = $this->org
+	 union all select 0
+EOT;
+      break;
+    case 'report':
+      $sql = <<<EOT
+	select 1 from JKUERY.TOKENS T
+	join JKUERY.JSON_TOKENS_JT JT on T.ID = JT.TOKENS_ID
+	join JKUERY.JSON J on J.ID = JT.JSON_ID
+	join JKUERY.JSON_LABEL_JT JL on JL.JSON_ID = J.ID
+	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID and UL.USER_ID = JT.USER_ID
+	join ORG$this->org.SMARTY_REPORT R on R.ID = J.HD_TICKET_RULE_ID 
+	where 
+	$this->id = R.ID
+	and UL.USER_ID = $userid
+	and JL.ORG_ID = $this->org	
+	 union all select 0
+EOT;
+      break;
+    case 'sqlp':
+    default:
+      $sql = <<<EOT
+	select 1 from JKUERY.JSON_LABEL_JT JL
+        join 	 ORG$this->org.LABEL L on JL.LABEL_ID = L.ID and JL.ORG_ID = $this->org
+	 join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = L.ID
+	 join ORG$this->org.USER U on U.ID = UL.USER_ID 
+	 where JL.JSON_ID = $this->id and U.ID = $userid
+	 union all select 0
+EOT;
+      break;
+    }
+    $this->Log($sql);
+    return (bool)($dbSys->GetOne($sql));
+} // end userlabelAllowedJSON ; 
 
   public function fail($msg){
     $this->Log("failing");
@@ -247,7 +305,7 @@ break;
       }
       break;
     case 'report': // similar to rule but from SMARTY_REPORT table;
-      $stmt = $this->getReportStmt($this->p);
+      $stmt = $this->getReportStmt(false);
       if( $this->getData($stmt, $this->p) ){
 	$this->printJSON();
       } else {
@@ -257,7 +315,7 @@ break;
       break;
     case 'rule': // use this when you want the rule referenced from JKUERY table ; 
       // for example if you want a rule from another ORG ; 
-      $stmt = $this->getRuleStmt($this->p);
+      $stmt = $this->getRuleStmt(false);
       if( $this->getData($stmt, $this->p) ){
       $this->printJSON();
       } else {
@@ -297,17 +355,23 @@ break;
   }
   // end getVersion;
 
-  public function getRuleStmt(){
+  public function getRuleStmt($nativeID){
     $db = dbConnect();
-    if($this->query_type == "rule"){
+    if($this->query_type == "rule" && $nativeID){
       $where = " R.ID = ".$this->id;
     } else {
       $where = " J.ID = ".$this->id;
     }
-    $_p_sql = "select replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') Q ,LEFT(NOTES,255) PURPOSE".
-      " from HD_TICKET_RULE R ".
-      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID ".
-    "WHERE ".$where;
+    $_p_sql = <<<EOT
+	select 
+	replace(replace(R.SELECT_QUERY, '<CHANGE_ID>','?'),'<TICKET_ID>',' and HD_TICKET.ID = ?') Q ,
+	LEFT(NOTES,255) PURPOSE
+      	from HD_TICKET_RULE R 
+      	left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID 
+    	WHERE $where
+EOT;
+
+$this->Log($_p_sql);
     $p_sql = $db-> GetRow($_p_sql);
     $this->setDebugSQL($p_sql['Q']);
     $this->purpose = $p_sql['PURPOSE'];
@@ -315,25 +379,27 @@ break;
   } // end getRuleStmt;
  
 
-  public function getReportStmt($p=false){
+  public function getReportStmt($nativeID){
     $db = dbConnect();
-    if($this->query_type == "report"){
+    if($this->query_type == "report" && $nativeID){
       $where = " R.ID = ".$this->id;
     } else {
       $where = " J.ID = ".$this->id;
     }
 
     $limit = '';
-    $upper = (int)$p[1];
-    $lower = (int)$p[0];
+    $upper = (int)$this->p[1];
+    $lower = (int)$this->p[0];
     if($upper > 0){
       $limit = " LIMIT $lower, $upper";
     }
 
-    $_p_sql = "select QUERY Q, left(DESCRIPTION,255) PURPOSE ".
-      " from SMARTY_REPORT R ".
-      " left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID ". // HD_TICKET_RULE for legacy reasons ;
-      "WHERE ".$where;
+    $_p_sql = <<<EOT
+	select QUERY Q, left(DESCRIPTION,255) PURPOSE 
+      	from SMARTY_REPORT R 
+      	left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID = R.ID 
+      	WHERE $where
+EOT;
 
     $this->Log('getReportStmt : '.$_p_sql);
     $p_sql = $db-> GetRow($_p_sql);
@@ -342,7 +408,7 @@ break;
 
     $sql = $db->Prepare($p_sql['Q']) . $limit;
     return $sql;
-  } // end getReportStmt
+  } // end getReportStmt; 
 
 
 
@@ -367,10 +433,10 @@ break;
     $r['version'] = isset($this->version) ? $this->version : '';
     $r['purpose'] = isset($this->purpose) ? $this->purpose : '';
     $r['status'] = isset($this->status) ? $this->status : 'error';
+    $r['count'] = $this->format == 0 ? count(json_decode($this->json,true)) : count($this->json);
     if($this->debug['status']){
       $r['debug'] = $this->debug;
     }
-    $r['count'] = count(json_decode($this->json,true));
     $r['json'] = $this->format == 0 ? json_decode($this->json,true) : $this->json;
     return json_encode($r,  JSON_FORCE_OBJECT);
   } // end formatJSON;
@@ -393,7 +459,7 @@ break;
        * use this when your source is a ticket rule -- you might not even have anything stored in JKUERY table ;
        *  this does not cover the scenario when you want to reference  rule from JKUERY table;
        */
-      $stmt = $this->getRuleStmt();
+      $stmt = $this->getRuleStmt(true);
       if($this->getData($stmt,$p)){
       $this->printJSON();
       } else {
@@ -407,7 +473,7 @@ break;
        * use this when your source is a smarty report  -- you might not even have anything stored in JKUERY table ;
        *  this does not cover the scenario when you want to reference  rule from JKUERY table;
        */
-      $stmt = $this->getReportStmt($this->p);
+      $stmt = $this->getReportStmt(true);
       if($this->getData($stmt)){
       $this->printJSON();
       } else {

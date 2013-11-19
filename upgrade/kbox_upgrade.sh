@@ -42,7 +42,7 @@ include_once('common.inc');
 
 // Use true to get additional script debug information, and prevent file deletion use false to turn it off.
 $debugit = true; 
-$version = "2.0";
+$version = "2.1b";
 
 function _u_dbConnect($dbname)
 {

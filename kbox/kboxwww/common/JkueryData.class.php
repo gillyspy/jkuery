@@ -28,15 +28,26 @@ class JkueryData{
     $this->format = 1;
     $this->purpose = "";
     $this->status = "success";
-    $this->json = ""; //TODO make this call a function to set it to an emtpy JSON object {} ;
+    $this->json = ""; //TODO?? make this call a function to set it to an empty JSON object {} ;
     $this->debug = array('status' => $debug);
     $this->Log("constructed");
-
 
     if(!$this->validID()){
       $this->Log("invalid ID");
       $this->message = "invalid ID";
       $this->status = "fail";
+    }
+
+    if($debug){
+      $this->Log($this->message);
+      $this->Log($this->id);
+      $this->Log($this->query_type);
+      $this->Log($this->version);
+      $this->Log($this->org);
+      $this->Log($this->format);
+      $this->Log($this->purpose);
+      $this->Log($this->status);
+      $this->Log($this->json);
     }
   } // end construct ; 
 
@@ -61,6 +72,7 @@ class JkueryData{
       //      $this->debug['query'] = "";
       //      $this->debug['parms'] = array();
       $this->debug['type'] = $this->query_type;
+      $this->debug['id'] = $this->id;
     }
     
   } // end setDebugData ;

@@ -16,7 +16,7 @@
 		    $.ajax({ url : '../jkuery/0', dataType : 'json'}) // bogus URL on purpose
 			.always(function(a,b,c){
 			    var jkv = b == 'error' ? a.responseJSON.version : c.responseJSON.version;
-                            $('#abouthidden').contents().find('#jkuerypatched').html(  'jKuery: '+ (jkv || 'n/a') +' jQuery: '+$.fn.jquery);
+                            $('#abouthidden').contents().find('#jkuerypatched').html(  '   with jKuery: '+ (jkv || 'n/a') +' using jQuery: '+$.fn.jquery);
                         });
 		    return '...';
 		},  // change the text;
@@ -30,8 +30,8 @@
 				     var $this = $(this),
 				     iPrepared=false,
 				     $jkuerypatched=$('<span id="jkuerypatched">'+cfg.t()+'</span>'),
-				     $abouthidden=$('<iframe src="/common/about.php" id="abouthidden" height="600px"\
-width="351px" style="overflow:hidden;position: fixed; left: 10px; bottom:\
+				     $abouthidden=$('<iframe src="/common/about.php" id="abouthidden" height="745px"\
+width="348px" style="overflow:hidden;position: fixed; left: 10px; bottom:\
 30px;z-index: 10000;"></iframe>');
 				     $this.find('a').after('<a href="#">About K1000</a>').remove().end()
 					 .on('click.'+_cfg._n,'a',

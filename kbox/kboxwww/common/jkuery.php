@@ -1,4 +1,25 @@
 <?php
+/* this is the service that will handle the request
+ * it will instantiate a jKuery request object and exit the response
+ */
+
+/*
+ * requests always lookup raw JSON or prepared statements that drive the creation of JSON.  
+ * note: rule_id is deprecated.  now just use id and query_type = rule
+ * is  the row in JKUERY.JSON that you want to work with
+ * query_type and org_id is now sourced from the prepared statement definition
+ * query_type dictates how the request is going to create JSON
+ ** "json" means you want to get the cached json data
+ ** "sqlp" mean you want to use the prepared statement
+ **  "sql" mean you want to execute a canned statement with variables
+ **  "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+ **  "report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
+ **  while that would fail in reporting it is still allowed to be created
+ ** "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
+ ** "debug" 1 means that you will get extra debug info returned. 0 is off (default)
+ * P* are the variables for a prepared statement. these are deprecated
+ * p is an array of variables parsed from the REST-style URL
+ */
 
 require 'JkueryData.class.php';
 require 'JkueryUser.class.php';
@@ -35,31 +56,25 @@ function setParms($PARAMS, $OBJ){
 }
 // end setParms;
 
-$debug=false; //debug ; 
-//$debug ? KBLog(print_r($_SESSION,true)) : false ;
-//KBLog(print_r($_REQUEST,true));
-//KBLog(print_r($_GET,true));
+// some defaults ;
+$debug=false; 
+$valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
+$referrer = $_SERVER[HTTP_ORIGIN];
+$needToken  = false;
 
-$PARAMS = array('id','org_id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username','debug');
-/*
- * rule_id is deprecated.  now just use id and query_type = rule
- * is  the row in JKUERY.JSON that you want to work with
- * query_type and org_id is now sourced from the prepared statement definition
- * query_type is how you want to work with that row or perhaps where the row comes from
-                        "json" means you want to get the cached json data
-                        "sqlp" mean you want to use the prepared statement
-                        "sql" mean you want to execute a canned statement with variables
-		        "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
-			"report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
-			while that would fail in reporting it is still allowed to be created
-                        "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
-			"debug" 1 means that you will get extra debug info returned. 0 is off (default)
- * P* are the variables for a prepared statement. these are deprecated
- * p is an array of variables parsed from the REST-style URL
- */
+// check login ;
+if(isset($_SESSION[KB_ORG])){
+  $org = setCurrentOrgForName($_SESSION[KB_ORG]);
+  $org_id = $org[ID];
+} else {
+  $org = setCurrentOrgForID(1);
+  $org_id = 1;
+}
+
+$PARAMS = array('id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username','debug');
 
 //put all parms for the prepared statement into variable;
-//this set the $_p from the GET/POST;
+//this set the $_p from a GET or POST;
 setParms($PARAMS, $_GET);
 setParms($PARAMS, $_POST);
 
@@ -69,28 +84,11 @@ $debug = ($debug =="true" || $debug == "1" || $debug == "on" ) ? true : false;
 if(isset($_GET['p']) && (string)$_GET['p'] !=''){
   $_p = explode( "/", $_GET['p']);
 }
-//KBLog(print_r($_p,true));
 
 $id = (int)$id;
-// $rule_id = (int)$rule_id;
-$org_id=(int)$org_id;
 $jautoformat = isset($jautoformat) ? (int)$jautoformat : 1; // default is 1:auto ;
 
-//CHECK LOGIN / AUTHENTICATE;
-if(isset($_SESSION[KB_ORG])){
-  $org = setCurrentOrgForName($_SESSION[KB_ORG]);
-  $org_id = $org[ID];
-} else {
-  $org = setCurrentOrgForID(1);
-  $org_id = 1;
-}
-
-$valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
-$referrer = $_SERVER[HTTP_ORIGIN];
-
-$needToken  = false;
-if(!$valid_session){
-  // try a token auth;
+if(!$valid_session){  // try a token auth;
     if($token){
       $valid_session = JkueryUser::LoginUserWithJkuery($token,$referrer);
       $org = setCurrentOrgForName($_SESSION[KB_ORG]);
@@ -98,14 +96,11 @@ if(!$valid_session){
       $needToken = true;
   }
 }
-KBLog('************************');
-KBLog(print_r($_SESSION,true) );
 
-KBlog("debug: ".$debug);
+// instantiate the object; 
+$obj = new JkueryData($id,$org_id,$query_type,$debug); // instantiate the class;
 
 if($valid_session){
-  // instantiate the object; 
-  $obj = new JkueryData($id,$org_id,$query_type,$debug); // instantiate the class;
 
   // token user allowed to see this object? ; 
   if($obj->userlabelAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
@@ -127,7 +122,8 @@ if($valid_session){
 
 } else {   //  401;
   header('HTTP/1.0 401 Unauthorized');
-  include("401.php");
+  $obj->fail("Unauthorized");
+  //  include("401.php");
 }
 
 exit();

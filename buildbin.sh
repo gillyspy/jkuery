@@ -1,5 +1,5 @@
 #!/opt/local/bin/bash
-VER="2.1"
+VER="2.1b"
 FILE="kbox_patch_jkueryV"
 FACTORY="http://engapps.test.kace.com/kbinfactory"
 TMP="/tmp"

@@ -86,50 +86,50 @@ if(isset($_SESSION[KB_ORG])){
 }
 
 $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
-//KBLog('user: '.$_SESSION[KB_USER_ID]);
 $referrer = $_SERVER[HTTP_ORIGIN];
-//KBLog(print_r($_SESSION,true));
 
-//KBLog(isset($_SESSION[KB_USER_ID]));
+$needToken  = false;
 if(!$valid_session){
   // try a token auth;
     if($token){
       $valid_session = JkueryUser::LoginUserWithJkuery($token,$referrer);
-
-      
-      //    KBLog('Origin: '.$_SERVER[HTTP_ORIGIN] );
-      //    KBLog(print_r($_SERVER,true));
+      $org = setCurrentOrgForName($_SESSION[KB_ORG]);
+      $org_id = $org[ID];
+      $needToken = true;
   }
 }
 KBLog('************************');
 KBLog(print_r($_SESSION,true) );
-if($valid_session){
-  $validRequest = JKueryUser::userlabelAllowedJSON($_SESSION[KB_USER_ID],$org_id,$id);
-}
-
-
 
 KBlog("debug: ".$debug);
-if($valid_session && $validRequest){
-  $obj = new JkueryData($id,$orgid,$query_type,$debug); // instantiate the class;
-  $db = dbConnect();
 
-  // if a rule is provided then determine if that rule is providing JSON (auto) or if we need to build the JSON;
-  //determine high-level type to figure out how to build the query or JSON;
-  if($obj->validID($obj->id)){
-    $obj->sourceType($_p,$jautoformat);
-  } else {
-    $obj->fail("Invalid request ID: $obj->id");
+if($valid_session){
+  // instantiate the object; 
+  $obj = new JkueryData($id,$org_id,$query_type,$debug); // instantiate the class;
+
+  // token user allowed to see this object? ; 
+  if($obj->userlabelAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
+    
+    // does the definition exist? ;
+    if($obj->validID()){
+      $obj->sourceType($_p,$jautoformat);
+      //    exit();
+    } else { // 404;
+      header('HTTP/1.0 404 Not Found');
+      //    include("404.php");
+      $obj->fail("Not Found");
+    }
+
+  } else { // 403;
+    header('HTTP/1.0 403 Forbidden');
+    $obj->fail("Forbidden");
   }
-}elseif(!$valid_session){
-  
-  KBLog('no session: failing');
-  $obj = new JkueryData(0,0, 'none',$debug); //instantiate the class;
-  $obj->fail("You do not have a valid session. Please authenticate  and try again");
-} else {
-  KBLog('invalid ID');
-  $obj = new JkueryData(0,0,'none',$debug);
-  $obj->fail("Invalid request ID: $obj->id");
+
+} else {   //  401;
+  header('HTTP/1.0 401 Unauthorized');
+  include("401.php");
 }
-// end if valid_session;
+
+exit();
+
 ?>

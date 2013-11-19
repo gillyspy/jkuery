@@ -47,11 +47,5 @@ EOT;
     return $authenticated; 
    } // end LoginUserWithJkuery ;
 
-  public static function userlabelAllowedJSON($userid,$org_id,$jid){
-    /* both a token and a user session end up getting mapped (via a user id) to a label */
-    $dbSys = dbConnectSys();
-    $sql = "select 1 from JKUERY.JSON_LABEL_JT JL join ORG$org_id.LABEL L on JL.LABEL_ID = L.ID and JL.ORG_ID = $org_id";
-    return (bool)($dbSys->GetOne($sql));
-  }
 }
 ?>

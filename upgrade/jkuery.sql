@@ -19,22 +19,41 @@ ALTER TABLE `JKUERY`.`JSON` CHANGE COLUMN `JDATA` `JDATA` VARCHAR(30) NULL DEFAU
 -- this could throw an exception so make sure to continue on error (i.e. force) wherever you care calling it from
 ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `QUERY_TYPE` VARCHAR(30) NOT NULL DEFAULT 'sqlp'  AFTER `MODIFIED` ;
 
+-- this could throw an exception so make sure to continue on error (i.e. force) wherever you care calling it from
+/* add a NAME column to JSON table for reference by name support */
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `NAME` VARCHAR(45) NOT NULL DEFAULT ''  AFTER `QUERY_TYPE` ;
 
-
-DROP TRIGGER IF EXISTS JKUERY.ceationtimeJSON;
 DELIMITER //
+DROP TRIGGER IF EXISTS JKUERY.ceationtimeJSON//
 CREATE TRIGGER JKUERY.ceationtimeJSON
 BEFORE INSERT ON JSON
 FOR EACH ROW
 BEGIN
 	IF NEW.CREATED = '0000-00-00 00:00:00' THEN
-		SET NEW.CREATED = NOW();
-	END IF;
+	   SET NEW.CREATED = NOW();
+        END IF;
 	IF NEW.JDATA IS NULL THEN
-		SET NEW.JDATA = '{}';
+	   SET NEW.JDATA = '{}';
 	END IF;
-END;
+	/* add a trigger to make new row for `NAME` unique by default when specified in an INSERT implicitly */
+	if new.NAME = '' then
+	   set new.NAME  =  LAST_INSERT_ID() + 1;
+        end if;	  
+END
+//
+DELIMITER ;
+/* make sure that legacy entries have a default unique value for NAME by setting them to the PK */
+update JKUERY.JSON set NAME = cast(ID as char) where NAME = '';
 
+/* now we can alter the table to make NAME unique */ 
+ALTER TABLE `JKUERY`.`JSON` 
+ADD UNIQUE INDEX `NAME_UNIQUE` (`NAME` ASC) ;
+
+replace into `JKUERY`.`JSON`(`NAME`,`SQLstr`,`PURPOSE`, CREATED,) values
+ ('jKuery Version','select ''version'' as VERSION, VALUE from KBSYS.SETTINGS where NAME = ''JKUERY_VERSION'' ', 'Demo script for jkuery. Example URL would be jkuery/jKuery+Version', now());
+
+
+/* add TOKENS table */
 CREATE TABLE IF NOT EXISTS `JKUERY`.`TOKENS` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `TOKEN` varchar(45) NOT NULL,
@@ -45,4 +64,4 @@ CREATE TABLE IF NOT EXISTS `JKUERY`.`TOKENS` (
 
 REPLACE INTO JKUERY.TOKENS(ID,TOKEN,ORIGIN)
 select * from JKUERY.TOKENS UNION ALL select 1,'nothing','https?://nowhere.comfooey' limit 1;
-//
+

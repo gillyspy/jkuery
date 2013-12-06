@@ -20,7 +20,6 @@ class JkueryData{
   private $debug;
 
   public function __construct($id,$org_id,$query_type,$debug=false){
-    $this->id = $id;
     $this->query_type = $query_type;
     $this->version = $this->getVersion(); 
     $this->org = (int)$org_id; //TODO get ORG from id for now; 
@@ -31,6 +30,14 @@ class JkueryData{
     $this->json = ""; //TODO?? make this call a function to set it to an empty JSON object {} ;
     $this->debug = array('status' => $debug);
     $this->Log("constructed");
+
+    if( $id != (string)(int)$id ){
+      // then force a string;
+      // lookup the integer value from the table ;
+      $this->id = $this->getIDforName($id);
+    } else {
+      $this->id = (int)$id;
+    }
 
     if(!$this->validID()){
       $this->Log("invalid ID");
@@ -49,7 +56,59 @@ class JkueryData{
       $this->Log($this->status);
       $this->Log($this->json);
     }
+
   } // end construct ; 
+
+  private function getIDforName($s)
+  {
+    try{
+      $db = dbConnect();
+      $s = esc_sql(urldecode($s));  //TODO: test this ;
+      $this->Log($s);
+      return $db->GetOne("select ID from JKUERY.JSON where NAME = $s union all select 0 ID");
+    } catch(Exception $e){
+      $this->message = "Not logged in to any ORG". $e->GetMessage();
+      $this->Log("error: $e->GetMessage()");
+      return 0;
+    }
+  }
+  /* TODO: create a map for parameter values to session variables.  e.g. /jkuery/1/:user_id
+   * the value of the current session (KB_USER_ID)
+   * if you still wanted to pass ":user_id" literally then you would use double colon "::user_id"
+   * as the first colon (when present) would get stripped off and compared. 
+   *
+   some session variables
+   [KB_ORG_CURRENT] => Array
+   (
+   [ID] => 1
+   [NAME] => Default
+   [DESCRIPTION] => Default organization for K1000 implementation.
+   [ROLE_ID] => 1
+   [ACTIVE] => 1
+   [DB] => ORG1
+   [ORG_USER] => B1
+   [REPORT_USER] => R1
+   [ORG_PASS] => kbox19
+   )
+   [KB_USER_ID] => 10
+   [KB_PERMISSIONS] => 2048
+   [KB_USER_EMAIL] =>
+   [KB_USER] => admin
+   [KB_IP] => 173.34.90.250
+   [KB_USER_ROLE_ID] => 1
+   [KB_PLATFORM] => Macintosh
+   [KB_ORG] => Default
+   [KB_COMPANY] => Dell KACE
+   [ADMIN_EMAIL] => kent_feid@kace.com
+   [KB_EMAIL_SUFFIX] => @kace.com
+   */
+  /*
+//TODO sql escape the names; look for ':'; strip it off when exists; map them out; look them up in the session object; fail if don't exist;
+substitute and process if they do exist
+    $map = array();
+    $map['org_name'] = $_SESSION['KB_ORG_CURRENT']['NAME'];
+    $map['user_id'] = $_SESSION['KB_USER_ID'];
+  */
 
   private function setDebugSQL($sql){
     if($this->debug['status']){
@@ -74,7 +133,6 @@ class JkueryData{
       $this->debug['type'] = $this->query_type;
       $this->debug['id'] = $this->id;
     }
-    
   } // end setDebugData ;
 
   private function Log($msg){
@@ -82,8 +140,6 @@ class JkueryData{
       KBLog($msg);
     }
   } 
-
-
 
   public function validID(){
     if($this->query_type == "rule"){
@@ -318,7 +374,7 @@ break;
       break;
     case 'report': // similar to rule but from SMARTY_REPORT table;
       $stmt = $this->getReportStmt(false);
-      if( $this->getData($stmt, $this->p) ){
+      if( $this->getData($stmt) ) { 
 	$this->printJSON();
       } else {
 	$this->status = "fail";
@@ -402,8 +458,11 @@ $this->Log($_p_sql);
     $limit = '';
     $upper = (int)$this->p[1];
     $lower = (int)$this->p[0];
-    if($upper > 0){
-      $limit = " LIMIT $lower, $upper";
+    if($lower >0){
+      $limit = " LIMIT $lower";
+      if($upper > 0){
+	$limit = $limit .", $upper";
+      }
     }
 
     $_p_sql = <<<EOT
@@ -462,6 +521,7 @@ EOT;
   } // end printJSON; 
 
   public function sourceType($p,$jautoformat){
+    $this-Log('parms:'.print_r($p,true));
     $this->format = $jautoformat;
     $this->setDebugParms($p);
     $this->p = $p;
@@ -517,8 +577,9 @@ EOT;
 	$this->json = $db->GetOne('select 1');
 	break;
       case 1:
-	$this->Log('is set? '.isset($p));
-	$this->json = isset($p) ? $db->GetAssoc($stmt,$p) : $db->GetAssoc($stmt);
+	$this->Log('is set? '.isset($p[0]));
+	$this->log('p: '.print_r($p,true));
+	$this->json = isset($p[0]) ? $db->GetAssoc($stmt,$p) : $db->GetAssoc($stmt);
 break;
       } // end switch ; 
       $this->status="success";

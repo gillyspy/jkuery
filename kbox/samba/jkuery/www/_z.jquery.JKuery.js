@@ -243,8 +243,9 @@
 	  return name;
 	};
 
-	this.setAjaxCallback = function(c){
-	  callback = c;
+	this.setData = function(){
+	  this.setAjax();
+	  return $.ajax(ajaxSettings);
 	};
 
 	var setTimer = function(t)
@@ -267,7 +268,7 @@
 	  return setTimer(callback,t);
 	};
 	  
-	this.setData =  function() 
+	this.setAjax =  function(callback) 
 	{  //  a helper function to run the ajax call that will get data from kbox into the object
 	  if(!(this instanceof jKuery.JSON)){
 	    throw 'jKuery JSON object not instantiated';
@@ -305,13 +306,13 @@
 	    }
 	  ); // end extend;
 	  
-	  if(callback instanceof Array){
+	  if(callback !== undefined && callback instanceof Array){
 	    ajaxSettings.complete.concat(callback);
 	  } else if (callback){
 	    ajaxSettings.complete.push(callback);
 	  }
 
-	  return $.ajax(ajaxSettings); // return this for promise fulfillment
+	  return ajaxSettings;
 
 	  //TODO perhaps this should return a promise
 	}; // end setData
@@ -428,6 +429,7 @@
 	return jKuery.LastJSON[hash];
       }
 
+      jKuery.LastJSON[hash] = {};
       jKuery.LastJSON[hash] = new jKuery.JSON(name, parms, source, qtype,setFlag);
 	return jKuery.LastJSON[hash];
     };
@@ -528,4 +530,6 @@
 /* the build number is available in the DOM in the script tags but that's more volatile 
  * this is more resource intensive but it is also instructive as a tutorial of sorts for more complex ops
  */
+
+
 

@@ -377,7 +377,7 @@ break;
       } // end switch ; 
       $this->status="success";
     } catch (Exception $e) {
-      KBLog("error : ".$e->GetMessage();
+      KBLog("error : ".$e->GetMessage());
       $this->status = "error";
       $this->message = "Error: ".$e->GetMessage();
       return false;

@@ -112,26 +112,22 @@ $obj = new JkueryData($id,$org_id,$query_type,$debug); // instantiate the class;
 if($valid_session){
 
   // token user allowed to see this object? ; 
-  if($obj->userlabelAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
+  if($obj->isUserAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
     
     // does the definition exist? ;
     if($obj->validID()){
       $obj->sourceType($_p,$jautoformat);
       //    exit();
     } else { // 404;
-      header('HTTP/1.0 404 Not Found');
-      //    include("404.php");
-      $obj->fail("Not Found");
+      $obj->fail(404,"Not Found");
     }
 
   } else { // 403;
-    header('HTTP/1.0 403 Forbidden');
-    $obj->fail("Forbidden");
+    $obj->fail(403,"Forbidden");
   }
 
 } else {   //  401;
-  header('HTTP/1.0 401 Unauthorized');
-  $obj->fail("Unauthorized");
+  $obj->fail(401,"Unauthorized");
   //  include("401.php");
 }
 

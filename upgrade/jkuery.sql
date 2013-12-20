@@ -1,4 +1,11 @@
+-- some constants
+set @'jkver':='jKuery Version';
+set @jkorg:=(select min(ID) from KBSYS.ORGANIZATION);
+set @jkrole:=1;
+set @'kver':='K1000 Version';
+
 CREATE DATABASE IF NOT EXISTS `JKUERY` /*!40100 DEFAULT CHARACTER SET utf8 */;
+USE `JKUERY`;
 CREATE TABLE IF NOT EXISTS  `JKUERY`.`JSON` (
   `ID` tinyint(4) NOT NULL AUTO_INCREMENT,
   `ORG` tinyint(4) unsigned NOT NULL DEFAULT '1',
@@ -49,8 +56,6 @@ update JKUERY.JSON set NAME = cast(ID as char) where NAME = '';
 ALTER TABLE `JKUERY`.`JSON` 
 ADD UNIQUE INDEX `NAME_UNIQUE` (`NAME` ASC) ;
 
-replace into `JKUERY`.`JSON`(`NAME`,`SQLstr`,`PURPOSE`, CREATED,) values
- ('jKuery Version','select ''version'' as VERSION, VALUE from KBSYS.SETTINGS where NAME = ''JKUERY_VERSION'' ', 'Demo script for jkuery. Example URL would be jkuery/jKuery+Version', now());
 
 
 /* add TOKENS table */
@@ -65,3 +70,49 @@ CREATE TABLE IF NOT EXISTS `JKUERY`.`TOKENS` (
 REPLACE INTO JKUERY.TOKENS(ID,TOKEN,ORIGIN)
 select * from JKUERY.TOKENS UNION ALL select 1,'nothing','https?://nowhere.comfooey' limit 1;
 
+-- what users are allowed based upon label associations
+CREATE TABLE IF NOT EXISTS `JSON_LABEL_JT` (
+  `JSON_ID` int(11) NOT NULL,
+  `ORG_ID` int(11) NOT NULL,
+  `LABEL_ID` int(11) NOT NULL,
+  PRIMARY KEY (`JSON_ID`,`ORG_ID`,`LABEL_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- what users are allowed based upon role associations
+CREATE TABLE IF NOT EXISTS `JSON_ROLE_JT` (
+  `JSON_ID` int(11) NOT NULL,
+  `ORG_ID` int(11) NOT NULL,
+  `ROLE_ID` int(11) NOT NULL,
+  PRIMARY KEY (`JSON_ID`,`ORG_ID`,`ROLE_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- mapping of given token for a remote connection to use an existing user 
+CREATE TABLE IF NOT EXISTS `JSON_TOKENS_JT` (
+  `JSON_ID` int(10) unsigned NOT NULL,
+  `ORG_ID` int(10) unsigned NOT NULL,
+  `TOKENS_ID` int(10) unsigned NOT NULL,
+  `USER_ID` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`JSON_ID`,`ORG_ID`,`TOKENS_ID`,`USER_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- insert demo query
+replace into `JKUERY`.`JSON`(`NAME`,`SQLstr`,`PURPOSE`, CREATED) values
+ (@jkver,'select ''version'' as VERSION, VALUE from KBSYS.SETTINGS where NAME = ''JKUERY_VERSION'' ', 'Demo script for jkuery. Example URL would be jkuery/jKuery+Version', now());
+
+-- by default only the admin user in ORG1 can access it
+replace into JKUERY.JSON_ROLE_JT(JSON_ID, ORG_ID, ROLE_ID) select ID, @jkorg, @jkrole from JSON 
+where JSON.NAME=@jkver;
+
+
+
+replace into JKUERY.JSON(SQLstr,PURPOSE,QUERY_TYPE,NAME)  values ('select "version", concat(MAJOR,''.'',MINOR,''.'',BUILD) KVERSION
+ from JKUERY.KBOX_VERSION ','return K1000 version','sqlp',@kver);
+
+replace into JKUERY.JSON_ROLE_JT(JSON_ID, ORG_ID, ROLE_ID) select ID, @jkorg, @jkrole from JSON 
+where JSON.NAME=@kver;
+
+-- create a view for version since OEM version shows the license key
+create view JKUERY.KBOX_VERSION as select MAJOR, MINOR,BUILD from KBSYS.KBOX_VERSION where ID=1;

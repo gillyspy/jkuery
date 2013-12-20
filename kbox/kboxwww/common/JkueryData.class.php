@@ -18,6 +18,9 @@ class JkueryData{
   private $format;
   private $p; //parms; 
   private $debug;
+  private $statusCode;
+  private $header;
+  private $httpMsg;
 
   public function __construct($id,$org_id,$query_type,$debug=false){
     $this->query_type = $query_type;
@@ -38,6 +41,8 @@ class JkueryData{
     } else {
       $this->id = (int)$id;
     }
+
+    $this->setHeader(200,'Success'); // default header
 
     if(!$this->validID()){
       $this->Log("invalid ID");
@@ -72,43 +77,6 @@ class JkueryData{
       return 0;
     }
   }
-  /* TODO: create a map for parameter values to session variables.  e.g. /jkuery/1/:user_id
-   * the value of the current session (KB_USER_ID)
-   * if you still wanted to pass ":user_id" literally then you would use double colon "::user_id"
-   * as the first colon (when present) would get stripped off and compared. 
-   *
-   some session variables
-   [KB_ORG_CURRENT] => Array
-   (
-   [ID] => 1
-   [NAME] => Default
-   [DESCRIPTION] => Default organization for K1000 implementation.
-   [ROLE_ID] => 1
-   [ACTIVE] => 1
-   [DB] => ORG1
-   [ORG_USER] => B1
-   [REPORT_USER] => R1
-   [ORG_PASS] => kbox19
-   )
-   [KB_USER_ID] => 10
-   [KB_PERMISSIONS] => 2048
-   [KB_USER_EMAIL] =>
-   [KB_USER] => admin
-   [KB_IP] => 173.34.90.250
-   [KB_USER_ROLE_ID] => 1
-   [KB_PLATFORM] => Macintosh
-   [KB_ORG] => Default
-   [KB_COMPANY] => Dell KACE
-   [ADMIN_EMAIL] => kent_feid@kace.com
-   [KB_EMAIL_SUFFIX] => @kace.com
-   */
-  /*
-//TODO sql escape the names; look for ':'; strip it off when exists; map them out; look them up in the session object; fail if don't exist;
-substitute and process if they do exist
-    $map = array();
-    $map['org_name'] = $_SESSION['KB_ORG_CURRENT']['NAME'];
-    $map['user_id'] = $_SESSION['KB_USER_ID'];
-  */
 
   private function setDebugSQL($sql){
     if($this->debug['status']){
@@ -132,6 +100,8 @@ substitute and process if they do exist
       //      $this->debug['parms'] = array();
       $this->debug['type'] = $this->query_type;
       $this->debug['id'] = $this->id;
+      $this->debug['statuscode']= $this->statusCode;
+      $this->debug['http message']=$this->httpMsg;
     }
   } // end setDebugData ;
 
@@ -166,8 +136,8 @@ substitute and process if they do exist
     }
   }
 
-  public function userlabelAllowedJSON($userid){
-    /* both a token and a user session end up getting mapped (via a user id) to a label */
+  public function isUserAllowedJSON($userid){
+    /* both a token and a user session end up getting mapped (via a user id) to a label or a role */
 
     /* for a rule or report we need an entry in the JKUERY.JSON table to match to the TOKEN 
      * so check type and see if a match can be found
@@ -177,56 +147,96 @@ substitute and process if they do exist
     switch($this->query_type){
     case 'rule':
       $sql = <<<EOT
-	select 1 from JKUERY.TOKENS T
-	join JKUERY.JSON_TOKENS_JT JT on T.ID = JT.TOKENS_ID
-	join JKUERY.JSON J on J.ID = JT.JSON_ID
+	select 1
+	from JKUERY.JSON J
 	join JKUERY.JSON_LABEL_JT JL on JL.JSON_ID = J.ID
-	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID and UL.USER_ID = JT.USER_ID
+	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID 
 	join ORG$this->org.HD_TICKET_RULE R on R.ID = J.HD_TICKET_RULE_ID
 	where 
 	$this->id = R.ID
 	and UL.USER_ID = $userid
 	and JL.ORG_ID = $this->org
-	 union all select 0
+	union all
+	select 1 
+	from JKUERY.JSON J 
+	join JKUERY.JSON_ROLE_JT JR on JR.JSON_ID = J.ID
+	join ORG$this->org.USER U on U.ROLE_ID = JR.ROLE_ID 
+	join ORG$this->org.HD_TICKET_RULE R on R.ID = J.HD_TICKET_RULE_ID
+	where 
+	$this->id = R.ID
+	and U.ID = $userid
+	and JR.ORG_ID = $this->org
+	union all select 0
 EOT;
       break;
     case 'report':
       $sql = <<<EOT
-	select 1 from JKUERY.TOKENS T
-	join JKUERY.JSON_TOKENS_JT JT on T.ID = JT.TOKENS_ID
-	join JKUERY.JSON J on J.ID = JT.JSON_ID
+	select 1 
+	from JKUERY.JSON J 
 	join JKUERY.JSON_LABEL_JT JL on JL.JSON_ID = J.ID
-	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID and UL.USER_ID = JT.USER_ID
+	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID 
 	join ORG$this->org.SMARTY_REPORT R on R.ID = J.HD_TICKET_RULE_ID 
 	where 
 	$this->id = R.ID
 	and UL.USER_ID = $userid
 	and JL.ORG_ID = $this->org	
-	 union all select 0
+	union all
+	select 1 
+	from JKUERY.JSON J 
+	join JKUERY.JSON_ROLE_JT JR on JR.JSON_ID = J.ID
+	join ORG$this->org.USER U on U.ROLE_ID = JR.ROLE_ID 
+	join ORG$this->org.SMARTY_REPORT R on R.ID = J.HD_TICKET_RULE_ID
+	where 
+	$this->id = R.ID
+	and U.ID = $userid
+	and JR.ORG_ID = $this->org
+	union all select 0
 EOT;
       break;
     case 'sqlp':
     default:
       $sql = <<<EOT
-	select 1 from JKUERY.JSON_LABEL_JT JL
-        join 	 ORG$this->org.LABEL L on JL.LABEL_ID = L.ID and JL.ORG_ID = $this->org
-	 join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = L.ID
-	 join ORG$this->org.USER U on U.ID = UL.USER_ID 
-	 where JL.JSON_ID = $this->id and U.ID = $userid
-	 union all select 0
+	select 1 
+	from JKUERY.JSON_LABEL_JT JL
+        join ORG$this->org.LABEL L on JL.LABEL_ID = L.ID and JL.ORG_ID = $this->org
+	join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = L.ID
+	join ORG$this->org.USER U on U.ID = UL.USER_ID 
+	where 
+	JL.JSON_ID = $this->id 
+	and U.ID = $userid
+	and JL.ORG_ID = $this->org
+	union all
+	select 1 
+	from JKUERY.JSON J 
+	join JKUERY.JSON_ROLE_JT JR on JR.JSON_ID = J.ID
+	join ORG$this->org.USER U on U.ROLE_ID = JR.ROLE_ID 
+	where 
+	J.ID = $this->id 
+	and U.ID = $userid
+	and JR.ORG_ID = $this->org
+	union all select 0
 EOT;
       break;
     }
     $this->Log($sql);
     return (bool)($dbSys->GetOne($sql));
-} // end userlabelAllowedJSON ; 
+} // end isUserAllowedJSON ; 
 
-  public function fail($msg){
+  public function succeed($sc=200, $msg=false){
+    $this->Log("succeeding");
+    $this->status  = $msg ? $msg : "success";
+    $this->setHeader($sc,'1.1',$this->status);
+    $this->printJSON();
+  } // end succeed;
+  
+  public function fail($sc=400,$msg=false){
     $this->Log("failing");
     $this->status = "fail";
     $this->format = 0;
-    $this->message =  $msg ? $msg : $this->message; //"You do not have a valid session. Please authenticate and try again";
+    $this->message =  !$this->message ? $msg : $this->message; //You do not have a valid session. Please authenticate and try again ;
+
     $this->json = "{}";
+    $this->setHeader($sc,'1.0', $this->message);
     $this->printJSON();
   } // end fail; 
 
@@ -287,10 +297,10 @@ EOT;
       if($this->validateJSON($sql) ){
 	$this->status  =  "success";
 	$this->json = $sql;
-	$this->printJSON();
+	$this->succeed(200,'success');
       } else {
 	$this->status = "error";
-	$this->fail();
+	$this->fail(400,'bad request');
       }
       break;
     case 'sqlpi': // similar to sqlp except when updating / inserting data;
@@ -298,10 +308,10 @@ EOT;
       $this->format = 2; // special format here;
       if( $this->getData( $stmt, $this->p ) ) {
 	$this->format = 1;
-	$this->printJSON();
+	$this->succeed(200,'success');
       }  else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
 	
     break;
@@ -352,10 +362,10 @@ EOT;
     $stmt = $db->Prepare($p_sql);
     if( $this->getData($stmt , $this->p) ){
       $this->status = "success";
-      $this->printJSON();
+      $this->succeed(200,'success');
     } else {
       $this->status = "fail";
-      $this->fail(false);
+      $this->fail(400,'bad request');
     }
 break;
     case 'sql': // similar to sqlp except using replacements ;
@@ -366,29 +376,29 @@ break;
       }
       $stmt = $db->GetOne("select $replacesql");
       if( $this->getData( $stmt, false ) ) {
-      $this->printJSON();
+      $this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
       break;
     case 'report': // similar to rule but from SMARTY_REPORT table;
       $stmt = $this->getReportStmt(false);
       if( $this->getData($stmt) ) { 
-	$this->printJSON();
+	$this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
       break;
     case 'rule': // use this when you want the rule referenced from JKUERY table ; 
       // for example if you want a rule from another ORG ; 
       $stmt = $this->getRuleStmt(false);
       if( $this->getData($stmt, $this->p) ){
-      $this->printJSON();
+      $this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
       break; 
     case 'sqlp': // most common case
@@ -397,16 +407,16 @@ break;
       if( $this->getData( $stmt, $this->p) ){
 	$this->Log("success");
 	$this->status = "success";
-	$this->printJSON();
+	$this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
       break;
     case 'loaded': //TODO;
     default: 
       $this->status = "fail";
-      $this->fail("invalid query type");
+      $this->fail(400,"invalid query type");
       break;
     } // end switch ;
   } // end getStmtFromType;
@@ -481,8 +491,6 @@ EOT;
     return $sql;
   } // end getReportStmt; 
 
-
-
   function changeORG(){
     return true; 
   } // end changeORG;
@@ -514,6 +522,7 @@ EOT;
 
   public function printJSON(){
     $this->Log("printing....");
+    header($this->header);
     header("Cache-Control: no-cache, must-revalidate");
     header("Expires: 0");
     header("Content-type: text/javascript");
@@ -521,8 +530,9 @@ EOT;
   } // end printJSON; 
 
   public function sourceType($p,$jautoformat){
-    $this-Log('parms:'.print_r($p,true));
+    $this->Log('parms:'.print_r($p,true));
     $this->format = $jautoformat;
+    $p = $this->mapSessionVar($p);
     $this->setDebugParms($p);
     $this->p = $p;
     switch($this->query_type){
@@ -533,10 +543,10 @@ EOT;
        */
       $stmt = $this->getRuleStmt(true);
       if($this->getData($stmt,$p)){
-      $this->printJSON();
+      $this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
 
       break;
@@ -547,10 +557,10 @@ EOT;
        */
       $stmt = $this->getReportStmt(true);
       if($this->getData($stmt)){
-      $this->printJSON();
+      $this->succeed(200,'success');
       } else {
 	$this->status = "fail";
-	$this->fail(false);
+	$this->fail(400,'bad request');
       }
       break;
     case 'lookup':
@@ -561,26 +571,90 @@ EOT;
     } // end switch ; 
   } // end sourceType;
 
+private function setHeader($statusCode, $protocolVer='1.0',$msg=false)
+{
+  $protos = array('1.1','1.0');
+  $protocolVer = in_array( $protocolVer, $protos) ? $protocolVer : '1.0';
+
+  $statusCode = (int)$statusCode;
+  $codes = array(400,401,403,404,500,200);
+  $statusCode = in_array( $statusCode, $codes) ? $statusCode : 400;
+
+  $this->statusCode = $statusCode;
+  $msgs = array(
+		400 => 'Bad Request',
+		401 => 'Unauthorized',
+		403 => 'Forbidden',
+		404 => 'Not Found',
+		500 => 'Internal Error',
+		200 => 'Success'
+		);
+
+  $this->message = $msg ? $msg : $msgs[$statusCode];
+  $this->httpMsg = in_array( $statusCode, $codes) ? $msgs[$statusCode] : $msgs[500];
+  $this->header = 'HTTP/'.$protocolVer.' '.$statusCode.' '.$this->httpMsg;
+  return $this->header;
+} // end setHeader;
+
+private function mapSessionVar($names)
+{
+  $this->Log('******************');
+  foreach($names as &$name){
+    // take a variable name and return the session variable equivalent
+    // e.g.  :user_id means sub in the user id for current session user
+    if( substr($name, 0, 1) == ":"){
+      $name = substr($name, 1);
+      switch( strtoupper($name) ){
+      case 'ORG_ID':
+	$name = $_SESSION['KB_ORG_CURRENT']['ID'];
+	break;
+      case 'USER_ID': 
+	$name = $_SESSION['KB_USER_ID'];
+	break;
+      case 'USER_EMAIL':
+	$name = $_SESSION['KB_USER_EMAIL'];
+	break;
+      case 'USER_NAME':
+	$name = $_SESSION['KB_USER'];
+	break;
+      case 'ROLE_ID':
+	$name = $_SESSION['KB_USER_ROLE_ID'];
+	break;
+      case 'PLATFORM':
+	$name = $_SESSION['KB_PLATFORM'];
+	break;
+      default:
+	// if we fall through then
+	$name = ':'.$name ;
+      }
+    } else {
+      $name = $name;
+    }
+    $this->Log('parm : '.$name);
+  }
+  return $names;
+}  // end mapSessionVar;
+
   function getData($stmt,$p=false){
     try{
       $db=dbConnect();
       $this->Log($this->format);
       switch((int)$this->format){
       case 0:
-      $this->json = $p ? $db->GetOne($stmt,$p) : $db->GetOne($stmt);
-      break;
+	$this->json = $p ? $db->GetOne($stmt,$p) : $db->GetOne($stmt);
+	break;
       case 2:
-      if(!$p){
-        throw new Exception('no parameters for update/insert.');
+	if(!$p){
+	  throw new Exception('no parameters for update/insert.');
 	}
 	$db->Execute($stmt,$p);
 	$this->json = $db->GetOne('select 1');
 	break;
       case 1:
 	$this->Log('is set? '.isset($p[0]));
-	$this->log('p: '.print_r($p,true));
+	$this->Log('p: '.print_r($p,true));
 	$this->json = isset($p[0]) ? $db->GetAssoc($stmt,$p) : $db->GetAssoc($stmt);
-break;
+	break;
       } // end switch ; 
       $this->status="success";
     } catch (Exception $e) {

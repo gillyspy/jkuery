@@ -1,0 +1,5 @@
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.jKuery.2.1.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.aboutjKuery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/default.js"></script>
+<link rel="stylesheet" href="/jkuery/www/adminui/2.1/default.css" />

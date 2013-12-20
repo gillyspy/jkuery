@@ -1,6 +1,6 @@
 /*jslint plusplus:true, todo:true, devel: true, browser: true */
 
-/* global jQuery:true, JKuery:true, JKuery */
+/* global jQuery:true, jKuery:true, jKuery */
 
 /* this is a list of helper functions that are specifically designed for use of jQuery and jKuery
  with the K-series appliances */
@@ -10,24 +10,24 @@
  */
 
 /* usage: 
- *  var K = new JKuery.Lib();
+ *  var K = new jKuery.Lib();
  * K.getVersion();  // returns the version; 
  * K.aboutjKuery(); // implements the jKuery "about k1000" dialogue;
  *
  * data api usage: 
- * var K = new JKuery.JSON( request, parms [, source [, querytype [,  boolean]]])
+ * var K = new jKuery.JSON( request, parms [, source [, querytype [,  boolean]]])
  ** requestname   type: string or integer.  Name or ID of JKUERY.JSON row
  ** parms       type: string or Array of strings.  
  ** source      type: string
  ** querytype   type: string
  ** boolean     type : boolean
  *
- * var K = new JKuery.JSON( url [, boolean])
+ * var K = new jKuery.JSON( url [, boolean])
  ** url   type : string of full request URL
  *
- * JKuery.newJkuery( requestname, parms )
- * JKuery.newRule( ruleID , parms)
- * JKuery.newReport( reportID, parms) 
+ * jKuery.newJkuery( requestname, parms )
+ * jKuery.newRule( ruleID , parms)
+ * jKuery.newReport( reportID, parms) 
  *
  * there is no support for name references for rules and reports BUT well this would break control over which ones run since a user with 
  *  access to rules/reports might not have JKUERY.JSON access.  They might change a rule/report name just to run that one instead.
@@ -114,9 +114,9 @@
 	    return this;
 	  },
 
-	  setDebug : function()
+	  setDebug : function(debug)
 	  {
-	    this.debug = !!this.debug && /^(on|true|1)$/.test(this.debug) ? 'true' : 'false';
+	    this.debug = !!debug && /^(on|true|1)$/.test(debug) ? 'true' : 'false';
 	    return this;
 	  },
 
@@ -192,17 +192,19 @@
     true, 
     window.jKuery,
     {
-      JSON : function(name,parms,source,qtype,setFlag)
+      JSON : function(name,parms,source,qtype,run)
       {
 	//TODO add a timer for JSON so that it can update itself on an interval.
 	// jKuery.LastJSON[hash] is a reference to each instance
-	var state,
+	var state='new',
 	    data = {},
 	    hash,
 	    timer,
+	  interval,
 	    ajaxSettings = {},
 	    callback = [function(){}];
 	source = source || 'jkuery';
+	  run = !!run;
 	//TODO: basic test to see if API is accessible otherwise give error; 
 	//TODO: allow this to be called with an object of settings instead
 	qtype = qtype || 'sqlp';
@@ -214,7 +216,7 @@
 	  return false;
 	}
 
-	fn.set.call(this,['format','host','timeout','interval']);
+	fn.set.call(this,['format','host','timeout']);
 
 	this.getParms = function(){
 	  return parms;
@@ -230,7 +232,7 @@
 	};
 	this.setState = function(s){ 
 	  state = s; 
-	  return true;
+	  return this;
 	};
 	this.setState(undefined);
 
@@ -243,36 +245,65 @@
 	  return name;
 	};
 
-	this.setData = function(){
-	  this.setAjax();
-	  return $.ajax(ajaxSettings);
+	  this.setRun = function(bool){
+	      run = !!bool;
+	      return this;
+	  }; 
+
+	  this.runAjax = function(callback){
+            // returns the ajax & promise ; 
+	      this.setAjax(callback);
+	      return $.ajax(ajaxSettings);
+	  };
+	  
+	this.setData = function(callback)
+	  {
+	    // similar to runAjax except returns the object for chaining;
+	      this.runAjax(callback);
+	      return this;
 	};
 
-	var setTimer = function(t)
+	var setTimer = function(callback)
 	{
-	  clearInterval(timer);
-	  if(t > 0){
-	    timer = setInterval( 
+	  var self = this;
+          self.setState('complete');
+	  if(interval > 1000){
+            self.setState('idle');
+	    timer = setTimeout( 
 	      function(){
-		return this.setData();
+		  if(run){
+		      self.runAjax.call( self,[callback,function(){setTimer.call(self,callback)}] );
+		  } else {
+                    setTimer.call(self,callback);
+                  }
 	      }
-	      , t
-	    );
+	      , interval // instance private variable;
+	    ); // end setTimeout;
 	  }
-	  return timer;
 	};
 	
-	this.setInterval = function(callback,t)
-	{
-	  this.interval = t || ( this.interval || (15*60*1000));
-	  return setTimer(callback,t);
-	};
-	  
+	// use the timer function to keep data set up to date.  Your callback might be to repopulate the item with data;
+	this.setInterval = function(t,callback)
+        {
+          t = (t > 1000 || t == 0) ? t : undefined;  // min 1 second; use 0 to clear only;
+          // an undefined time will yeield a 15 min timer
+          // any new value between 0 and 1000 will keep the exising timer
+          // 0 to end the timer
+          // > 1000 to set it again
+          interval = t !=undefined ? t : ( interval || (15*60*1000)); //15 mins;
+          setTimer.call(this,callback);
+          return this;
+        };
+
 	this.setAjax =  function(callback) 
 	{  //  a helper function to run the ajax call that will get data from kbox into the object
 	  if(!(this instanceof jKuery.JSON)){
 	    throw 'jKuery JSON object not instantiated';
 	  }
+          
+          var callbackArr = [
+            function(){ this.setState('complete');}
+          ];
 
 	  //this.analyzeConfig();
 	  $.extend(
@@ -289,10 +320,7 @@
 	      dataType : 'json',
 	      type : 'POST',
 	      timeout : this.timeout,
-	      callback : callback,
-	      //TODO complete necessary?
-	      //function(){ this.setState('complete');},
-	      beforeSend: function(){ this.setState('pending');},
+	      beforeSend: function(){ this.setState('refreshing');},
 	      success : function(d)
 	      {
 		data = d;
@@ -300,25 +328,25 @@
 	      error : function(a,b,c)
 	      {
 		data = {};
-		$.extend(data,a.responseJSON);
+		  // set responseJSON even in an error condition for convenience
+		$.extend(data,a.responseJSON); 
 		data.message = b+': '+c;
 	      }
 	    }
 	  ); // end extend;
 	  
+	    // TODO: move this to a callback adder function;
 	  if(callback !== undefined && callback instanceof Array){
-	    ajaxSettings.complete.concat(callback);
+	    ajaxSettings.complete = callbackArr.concat(callback);
 	  } else if (callback){
-	    ajaxSettings.complete.push(callback);
+	    ajaxSettings.complete = callbackArr.push(callback);
 	  }
 
 	  return ajaxSettings;
-
-	  //TODO perhaps this should return a promise
 	}; // end setData
 
-	if(setFlag){
-	  this.setData(); // optionally make the call for the data
+	if(run){
+	  this.runAjax(); // optionally make the call for the data
 	}
       } // end jKuery.JSON constructor;
     }
@@ -393,7 +421,7 @@
     } // end switch;
 
     return function(a,b,e,f){ 
-      var name,parms,setFlag;
+      var name,parms,doRun;
 
       /* examples: 
        * jKuery.newJkuery('GetUser','John Doe');
@@ -409,15 +437,15 @@
 	name = url[3];
 	parms = url[4].split('/').slice(1); // parms array
 	qtype = url[5].match(/query_type=[^=]+/); // query string
-	setFlag = parms || true; 
+	doRun = parms || true; 
       } else {
 	name = a;
 	parms = b;
-	setFlag = e || false;
+	doRun = e || false;
 	if(f !== undefined){
 	  // when f is defined then f is the flag
 	  qtype = f;
-	  setFlag = f;
+	  doRun = f;
 	}
       }
       if(!jKuery.LastJSON){ // only create this when needed
@@ -430,7 +458,7 @@
       }
 
       jKuery.LastJSON[hash] = {};
-      jKuery.LastJSON[hash] = new jKuery.JSON(name, parms, source, qtype,setFlag);
+      jKuery.LastJSON[hash] = new jKuery.JSON(name, parms, source, qtype,doRun);
 	return jKuery.LastJSON[hash];
     };
   };
@@ -461,7 +489,7 @@
 
   jKuery.getJKVersion = function()
   {
-    var VersionTest = jKuery.newJkuery('getVersionInfo',0,false); // even failed requests return the version
+    var VersionTest = jKuery.newJkuery('jKuery Version','',false); // even failed requests return the version;
     VersionTest.setTimeout(1000);
     return VersionTest;
     //TODO
@@ -472,6 +500,13 @@
      * probaby should use a special request in jkuery.php to facilitate this
      */
   };
+
+    jKuery.getKVersion = function()
+    {
+	var VersionTest = jKuery.newJkuery('K1000 Version','',false);
+	VersionTest.setTimeout(1000);
+	return VersionTest;
+    }
 
   $.extend(
     true, 
@@ -522,9 +557,6 @@
 /* 
  * This will read the kbox version from the database using the webservices api instad of inferring from DOM
  *
- *  Run this SQL first for it to work properly:
- insert into JKUERY.JSON(SQLstr,PURPOSE,QUERY_TYPE,NAME)  values ('select "VERSION", concat(MAJOR,''.'',MINOR,''.'',BUILD) KVERSION 
- from KBOX_VERSION where PACKAGE = ''KB_LICENSE_CORE'' ','getKVersion','sqlp','getKVersion')
  */
 
 /* the build number is available in the DOM in the script tags but that's more volatile 

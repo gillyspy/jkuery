@@ -1,7 +1,6 @@
 s/<\/head>/\
-<\?php \
+<\? \
 # jkuery enabled\
-include '..\/jkuery\/include\/jkuery.css.inc';\
-include '..\/jkuery\/include\/jkuery.js.inc';\
+include '..\/jkuery\/include\/jkuery.helper.inc';\
 ?>\
 <\/head>/I

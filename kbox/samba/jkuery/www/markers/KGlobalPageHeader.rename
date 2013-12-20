@@ -1,0 +1,24 @@
+//this is just a comment and will not be parsed
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.jKuery.min.2.1.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/jquery.aboutjKuery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.1/default.js"></script>
+<link rel="stylesheet" href="/jkuery/www/2.1/default.css" />
+
+/*
+to use this file you must copy it and call the copy "KAdminPageHeader" (i.e. without the ".renamme" extension).  Every time you apply this kbin the rename files will be overwritten but your file will remain intact.  
+
+Part of the reason for using this technique is legacy compatibility with older versions of the plugin
+
+in the example above all "link" tags will be processed first in the order they appear in this file
+Then all "script" tags will be parsed in the order they appear in this file.  Previously it was alphabetical order they appeared in diff't directories but now you define the order and existence of a file is not good enough you MUST have a reference in the appropriate marker file
+
+Neither script nor link tags support external references.  
+They MUST include locations that start with "/jkuery/www"
+
+If you have any typos in the markup then they will not be included.  
+
+To know if it is working simply inspect the source of the page to see if they were included in the HEAD of the file. 
+
+All files parsed will be included AFTER the OEM scripts and links at the bottom of the head.  
+*/

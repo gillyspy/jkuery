@@ -42,7 +42,10 @@ include_once('common.inc');
 
 // Use true to get additional script debug information, and prevent file deletion use false to turn it off.
 $debugit = true; 
-$version = "2.0";
+$version = "2.1";
+$verMatch = false;
+$tryVersion = array("5.3.53053", "5.4.70402", "5.4.76847", "5.5.90545", "5.5.85228", "5.5.90546");
+$Kversion = get_version_number();
 
 function _u_dbConnect($dbname)
 {
@@ -214,10 +217,10 @@ function exitCleanup($jKueryDone=false){
 
 		// Done remove cleanup and remove script
 		if (file_exists('/kbackup/kbox_upgrade_pkg.gz')) {
-			exec("rm -f /kbackup/kbox_upgrade_pkg.gz");
+		  	exec("rm -f /kbackup/kbox_upgrade_pkg.gz");
 		}
 		if (file_exists('/kbackup/upgrade')) {
-			exec("rm -rf /kbackup/upgrade");
+		  	exec("rm -rf /kbackup/upgrade");
 		}
 	}
 
@@ -241,7 +244,7 @@ function restartServices(){
 }
 
 function setJkueryVersion($ver="2.0"){
-  $sql = "replace into KBSYS.SETTINGS(NAME,VALUE) values ('JKUERY_VERSION',$ver)";
+  $sql = "replace into KBSYS.SETTINGS(NAME,VALUE) values ('JKUERY_VERSION',".esc_sql($ver).")";
   try{
     $db = _u_dbConnect('KBSYS');
     $db->Execute($sql);
@@ -301,24 +304,39 @@ function createHttpSed(){
    */
   //get regex from TOKENS
    $rgx = getOriginsRgx();
-   if($rgx){
+   if(!$rgx){
+     //do nothing
+   } else {
      $conf = <<<EOT
 /<Directory \\/>/{
 N
 N
 N
 N
-s/<Directory \\/>.*/SetEnvIf Origin "$rgx" ORIGIN_SUB_DOMAIN\\=\\$1\x5c
+N
+N
+N
+N
+N
+N
+s/\\(<Directory \\/>.*\\)\\(RewriteEngine on\\)/SetEnvIf Origin "$rgx" ORIGIN_SUB_DOMAIN\\=\\$1\x5c
 \x5c
-<Directory \\/>\x5c
-    Options FollowSymLinks\x5c
-    AllowOverride None\x5c
+<Directory \\~ "\\/kbox\\/kboxwww\\/common\\/jkuery.php">\x5c
     Header set Access-Control-Allow-Origin "%\\{ORIGIN_SUB_DOMAIN\\}e" env\\=ORIGIN_SUB_DOMAIN\x5c
-    RewriteEngine On\x5c
+<\\/Directory>\x5c
+\x5c
+\\1\x5c
+    \\2\x5c
 \x5c
     \\#Support REST style URLs for jkuery.php\x5c
-    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2 \\[QSA,L\\]\x5c
-    RewriteRule \\^kbox\\/kboxwww\\/rule\\/\\(\\[0-9\\]\\*\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=rule\\[QSA,L\\]/g
+    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/\\(\\(\\?\\!\\(\\?\\:www\\|include\\)\\/\\)\\[\\^\\/\\]\\+\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=lookup \\[QSA,L\\]\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/rule\\/\\(\\(\\?\\!\\(\\?\\:www\\|include\\)\\/\\)\\[\\^\\/\\]\\+\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=rule \\[QSA,L\\]\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/report\\/\\(\\(\\?\\!\\(\\?\\:www\\|include\\)\\/\\)\\[\\^\\/\\]\\+\\)\\(\\?\\:\\/\\(\\[\\^\\?\\]\\*\\)\\)\\?\\$ kbox\\/kboxwww\\/common\\/jkuery\\.php\\?id\\=\\$1\\&p\\=\\$2\\&query_type\\=report \\[QSA,L\\]\x5c
+    \\#give 404 on any documents starting in markers or hidden share subfolders.\x5c
+    RewriteRule \\^kbox\\/kboxwww\\/jkuery\\/www\\/\\(markers\\|hidden\\)\\/\\.\\*\\$ \\[R\\=404,L\\]\x5c
+\x5c
+    \\#non-jkuery rewrite rules\x5c
+/g
 }
 EOT;
    
@@ -336,57 +354,60 @@ logu("Begin installing jKuery extension", true);
 // Step 1) 
 // Check version of K1000 software
 
-$curVersion = getCurrentVersion();
+//$curVersion = getCurrentVersion();
 
 if($debugit===true) {
-	logu("Current version is: $curVersion", true );
+	logu("Current version is: $Kversion", true );
 }
 
+foreach($tryVersion as $serverVersion){
+  logu("- looking for KBOX compatible version $serverVersion ...");
+  if(0 == versionCompare($Kversion, $serverVersion, false)) {
+    $verMatch = true;
+    logu("- found compatible version");
+
+    // Step 1b: set version
+    setJkueryVersion($version);
+
+    // Step 2: Unpack and run script
+    logu("Unpacking Files, Initializing Headers, Sourcing your code, configuring Samba",true);
+    // create support files if necessary
+    createHttpSed();
+    exec("/kbackup/upgrade/jkuery_install.sh >>".KB_LOG_DIR."update_log");
+
+    // Step 3: Create Db object
+    logu("Creating Database Objects",true);
+    if( createJSD('jkuery.sql') )
+      {
+	logu("Database object already exists. Exiting object creation.",true );
+      } else {	
+      logu("Database not created Successfully");
+      logu("Creation of database objects failed. jKuery partially installed",true);
+    }
+
+    //	Step 4) Give permissions
+    logu("Assigning permissions to JKUERY tables",true);
+    if(dbGrants()){
+      logu("Permissions assigned for JKUERY.*",true);
+    } else {
+      logu("Failed to assign permissions",true);
+      logu("jKuery partially installed",true);
+      exitCleanup(false);
+    }
 
 
-// 5.1.31237 GA Release
-$minVersion = 31237;
+    logu("jKuery install completed with no errors.  Please view readme for next steps",true);
 
-if($curVersion < $minVersion) {
-    logu("K1000 jKuery $version FAILED - requires a minimum build level of ($minVersion), you are currently at ($curVersion).", true);
+
+
+    // Step 5) Cleanup
+    exitCleanup(true);
+  }
+}
+
+if($verMatch == false) {
+    logu("K1000 jKuery $version FAILED - requires a minimum build level of ($tryVersion[0]), you are currently at ($Kversion).", true);
     exitCleanup(false);
 }
-
-// Step 1b: set version
-setJkueryVersion("2.0");
-
- // Step 2: Unpack and run script
-logu("Unpacking Files, Initializing Headers, Sourcing your code, configuring Samba",true);
-// create support files if necessary
-createHttpSed();
-exec("/kbackup/upgrade/jkuery_install.sh >>".KB_LOG_DIR."update_log");
-
-// Step 3: Create Db object
-logu("Creating Database Objects",true);
-if( createJSD('jkuery.sql') )
-{
-	logu("Database object already exists. Exiting object creation.",true );
-} else {	
-    logu("Database not created Successfully");
-    logu("Creation of database objects failed. jKuery partially installed",true);
-}
-
-//	Step 4) Give permissions
-logu("Assigning permissions to JKUERY tables",true);
-if(dbGrants()){
-	logu("Permissions assigned for JKUERY.*",true);
-} else {
-	logu("Failed to assign permissions",true);
-	logu("jKuery partially installed",true);
-	exitCleanup(false);
-}
-
-
-logu("jKuery install completed with no errors.  Please view readme for next steps",true);
-
-
-
-// Step 5) Cleanup
-exitCleanup(true);
 
 ?>

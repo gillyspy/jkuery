@@ -5,7 +5,6 @@ customers. While they will not harm your kbox they will not work for every custo
 Feel free to use them as you desire, whether that is as-is, with modifications or just as a proof of
 concept /demo
 
-
 Demos are not necessarily designed to work with one another.  For instance, an example that 
 manipulates an OEM area of the kbox might trump another script trying to access that object. 
 Reasonable effort has been made to make sure this does not happen, but no guarantees.
@@ -21,3 +20,6 @@ Additional demos are available. If you are running the chrome browser then you c
 a browser plugin that contains these demos. You can use these demos and integrate them into
 your kbox if desired.  You do  not need jKuery installed to use the chrome plugin, but
 it will look and feel as if it is installed. 
+
+The chrome extension can be found here:
+https://chrome.google.com/webstore/search-extensions/kbox

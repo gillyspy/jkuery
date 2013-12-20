@@ -11,71 +11,34 @@
 # TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
+ver=2.1
 
 #unpack marker files, default files, examples, etc
-#permissions will be updated below so -p is no longer necessary
+#permissions will be updated below so -p is no longer necessary on the tar command
+#always overwrite service files
 rm /kbox/kboxwww/common/*kuery*.php
-/usr/bin/tar -xkpf /kbackup/upgrade/jkuery_pkg.tgz -C /
+#always overwrite base header include
+rm /kbox/samba/jkuery/include/jkuery*
+#always overwrite base release files
+rm $jk/www/$ver/*
+#always overwrite base markers
+rm $jk/www/markers/*.rename
+
+#move anything that was in the legacy \other\_utilities and \other\_examples folders before extraction into hidden
+mv $jk/www/other/_examples $jk/www/hidden/
+mv $jk/www/other/_utilities $jk/www/hidden/
+
+# otherwise do not overwrite existing files. e.g. /kbox/samba/jkuery/www/markers/KGlobalHeader
+/usr/bin/tar -xkf /kbackup/upgrade/jkuery_pkg.tgz -C /
 
 #create the symlink as the tar file created the real dir
 ln -sFhf /kbox/samba/jkuery /kbox/kboxwww/jkuery
 
 cd $jk/www
-rm $jk/include/jkuery*
-#build the includes based on all js scripts in the jkuery directory
-for f in *.js
-do
-    echo building links...
-        echo '<script type="text/javascript" src="'$www$f'"></script>' >> $jk/include/jkuery.js.inc
-done
-for f in *.css
-do
-        echo building links...
-	echo '<link rel="stylesheet" href="'$www$f'" />' >> $jk/include/jkuery.css.inc
-done
 
-#build the includes for jkuery/adminui
-cd $jk/www/adminui
-for f in *.js
-do
-        echo building links...
-        echo '<script type="text/javascript" src="'$www'adminui/'$f'"></script>' >> $jk/include/jkuery.adminui.js.inc
-done
-for f in *.css
-do
-        echo building links...
-        echo '<link rel="stylesheet" href="'$www'adminui/'$f'" />' >> $jk/include/jkuery.adminui.css.inc
-done
-
-#build includes for jkuery/systemui
-cd $jk/www/systemui
-for f in *.js
-do
-        echo building links...
-        echo '<script type="text/javascript" src="'$www'systemui/'$f'"></script>' >> $jk/include/jkuery.systemui.js.inc
-done
-for f in *.css
-do
-        echo building links...
-        echo '<link rel="stylesheet" href="'$www'systemui/'$f'" />' >> $jk/include/jkuery.systemui.css.inc
-done
-   
-#build includes for jkuery/userui
-cd $jk/www/userui
-for f in *.js
-do
-        echo building links...
-        echo '<script type="text/javascript" src="'$www'userui/'$f'"></script>' >> $jk/include/jkuery.userui.js.inc
-done
-for f in *.css
-do
-        echo building links...
-      echo '<link rel="stylesheet" href="'$www'userui/'$f'" />' >> $jk/include/jkuery.userui.css.inc
-done
-
-#any file that has been modified has "jkuery enabled" in it so restore that one from backup which will remove the jkuery stuff
+#any header file that has been modified has string "jkuery enabled" in it so restore that one from backup which will remove the jkuery stuff
 #it will get re-added later if appropriate
-#when a customer does an upgrade this will fail and prevent the older .bak from being restored
+#when a customer does an upgrade this will fail as the header files will not have the string "jkuery enabled" and thus prevent the older .bak from being restored
 cd /kbox/kboxwww/include
 for f in K*Header*.class.php
 do
@@ -84,43 +47,25 @@ do
 done 
 
 
-#loop over all header files in include and inject the scripts.  
-# note that KPageHeader.class.php does not match the sed pattern even though it does go through the loop. that is ok
-# to exclude a file from having it's headers modified simply add ".rename" to the end of it's name in /kbox/kboxwww/jkuery/markers  
-#  e.g. /kbox/kbox/jkuery/markers/KPrintablePageHeader.rename would be excluded
+# loop over all header files in include, back them up and inject the code that adds <script> and <link> tags
+# all header files are now modified in 2.1 and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
 cd /kbox/kboxwww/include
 
 for f in K*Header*.php
 do 
+    if [ $f = "KPrintablePageHeader.class.php" ]
+	then 
+	continue
+    fi
+    # backup all header files
     cp /kbox/kboxwww/include/$f /kbox/kboxwww/include/$f.bak
+    # inject header file into a temporary file
+    sed -f /kbackup/upgrade/header.inc < /kbox/kboxwww/include/$f > /kbox/kboxwww/include/$f.jkuery
+    # make temporary file permanent
+    mv /kbox/kboxwww/include/$f.jkuery /kbox/kboxwww/include/$f
 done
 
-cd $jk/www/markers
-for f in KAdminPageHeader KWelcomePageHeader
-do
-    sed -f /kbackup/upgrade/adminheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
-done
-
-for f in KSysPageHeader KWelcomePageHeaderSys
-do
-    sed -f /kbackup/upgrade/sysheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
-done
-
-for f in KUserPageHeader
-do
-    sed -f /kbackup/upgrade/userheader.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
-done
-
-for f in K*Header
-do
-    sed -f /kbackup/upgrade/header.inc < /kbox/kboxwww/include/$f.class.php > /kbox/kboxwww/include/$f.class.php.jkuery
-    mv /kbox/kboxwww/include/$f.class.php.jkuery /kbox/kboxwww/include/$f.class.php
-done
-
-# map a  samba share to file depot
+# map a permanent  samba share to file depot
 #if it has jkuery in it then it's already configured so...
 # restore the backup (.nojkuery) that does NOT have jkuery in it
 grep -l "jkuery" /usr/local/etc/smb.conf | xargs cp /usr/local/etc/smb.conf.nojkuery 
@@ -161,22 +106,51 @@ mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
 sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
 
-#TODO test permissions being correct in the tar file and set by the tar file extract instead
 #set permissions on all files from the tarball
 #all includes get 444 root:wheel
-#all www they are 644 root:wheel
 chown root:wheel $jk/include/jkuery*
 chmod 444 $jk/include/jkuery*
-chown root:wheel /kbox/kboxwww/common/*kuery*
-chmod 444 /kbox/kboxwww/common/*kuery*
-find $jk/www -type f -name "*" -exec chown root:wheel '{}' \;
-find $jk/www -type f -name "*" -exec chmod 644 '{}' \;
-#this makes it so you cannot edit these placeholders
-find $jk/www -type f -name "default.css" -exec chmod 444 '{}' \;
-find $jk/www -type f -name "default.js" -exec chmod 444 '{}' \;
 
-#v3 TODO move restart of apache to kbox_upgrade script
-#/usr/local/etc/rc.d/samba restart
-#/usr/local/etc/rc.d/apache2 restart
-#/usr/local/etc/rc.d/apache22 restart
+chown root:wheel /kbox/kboxwww/common/*kuery*.php
+chmod 444 /kbox/kboxwww/common/*kuery*.php
+
+#ftp owns most file share files (including customer created files  such that can be written via samba or ftp
+#ftp user is forced as the proxy user for the samba connection
+find $jk/www -type f -name "*" -exec chown ftp:wheel '{}' \;
+find $jk/www -type f -name "*" -exec chmod 644 '{}' \;
+
+find $jk/www -type d -name "*" -exec chown root:wheel '{}' \;
+find $jk/www -type d -name "*" -exec chmod 755 '{}' \;
+
+#read only readme files
+find $jk/www -type f -name "readme*" -exec chown root:wheel {} \;
+find $jk/www -type f -name "readme*" -exec chmod 444 {} \;
+
+#read only markers and release files
+#read only release directory
+chown ftp:wheel  $jk/www/markers/*
+chown root:wheel $jk/www/markers/*.rename
+chown root:wheel $jk/www/$ver/*
+chown root:wheel $jk/www/$ver
+
+chmod 644 $jk/www/markers/*
+chmod 644 $jk/www/markers/*.rename 
+chmod 644 $jk/www/$ver/*
+chmod 755 $jk/www/$ver
+
+#make customer dir (if not already exists)
+mkdir $jk/www/customer
+mv $jk/www/adminui $jk/www/customer/
+mv $jk/www/systemui $jk/www/customer/
+mv $jk/www/userui $jk/www/customer/
+mv $jk/www/other $jk/www/customer/
+
+echo "moving existing customer files to customer writeable share"
+find $jk/www -maxdepth 1 -type f -name "*" -exec mv {} $jk/www/customer/ \; -print
+chown ftp:wheel $jk/www/customer
+chmod 755 $jk/www/customer
+find $jk/www/customer -name "*" -exec chown ftp:wheel '{}' \;
+find $jk/www/customer -type f -name "*" -exec chmod 644 '{}' \;
+find $jk/www/customer -type d -name "*" -exec chmod 755 '{}' \;
+
 cd /kbackup/upgrade

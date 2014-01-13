@@ -11,7 +11,7 @@
 # TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
-ver=2.1
+ver=2.2
 
 #unpack marker files, default files, examples, etc
 #permissions will be updated below so -p is no longer necessary on the tar command
@@ -48,7 +48,7 @@ done
 
 
 # loop over all header files in include, back them up and inject the code that adds <script> and <link> tags
-# all header files are now modified in 2.1 and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
+# all header files are now modified in 2.1+ and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
 cd /kbox/kboxwww/include
 
 for f in K*Header*.php
@@ -92,11 +92,19 @@ grep -l "jkuery" /kbox/bin/kbserver/templates/httpd22.conf.template | xargs cp /
 cd /kbackup/upgrade
 sed -I .nojkuery -f ./httpd.sed.conf /usr/local/etc/apache2/httpd.conf
 sed -I .nojkuery -f ./httpd.sed.conf /usr/local/etc/apache22/httpd.conf
+
+#do not use -I again because a "nojkuery" version is already made
 sed -f ./httpd.2.sed.conf /usr/local/etc/apache2/httpd.conf > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /usr/local/etc/apache2/httpd.conf
 sed -f ./httpd.2.sed.conf /usr/local/etc/apache22/httpd.conf > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /usr/local/etc/apache22/httpd.conf
 
+sed -f ./http.delete.sed.conf /usr/local/etc/apache2/httpd.conf > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /usr/local/etc/apache2/httpd.conf
+sed -f ./http.delete.sed.conf /usr/local/etc/apache22/httpd.conf > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /usr/local/etc/apache22/httpd.conf
+
+#do same to the templates
 sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template
 sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template
 
@@ -104,6 +112,11 @@ sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.t
 sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
 sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
+
+sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
+sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
 
 #set permissions on all files from the tarball

@@ -44,7 +44,7 @@ BEGIN
 	END IF;
 	/* add a trigger to make new row for `NAME` unique by default when specified in an INSERT implicitly */
 	if new.NAME = '' then
-	   set new.NAME  =  LAST_INSERT_ID() + 1;
+	   set new.NAME  =  concat('jkuery',floor(rand(1000)*1000) );
         end if;	  
 END
 //
@@ -116,3 +116,11 @@ where JSON.NAME=@kver;
 
 -- create a view for version since OEM version shows the license key
 create view JKUERY.KBOX_VERSION as select MAJOR, MINOR,BUILD from KBSYS.KBOX_VERSION where ID=1;
+
+-- 
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `INSERTstr` text NULL AFTER `SQLstr` ;
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `UPDATEstr` text NULL AFTER `INSERTstr`;
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `DELETEstr` text NULL AFTER  `PUTstr` ;
+
+
+

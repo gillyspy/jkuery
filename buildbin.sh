@@ -1,9 +1,9 @@
 #!/opt/local/bin/bash
-VER="2.1"
+VER="2.2"
 FILE="kbox_patch_jkueryV"
 FACTORY="http://engapps.test.kace.com/kbinfactory"
 MINIFIER="http://closure-compiler.appspot.com/compile"
-JSDIR="kbox/samba/jkuery/www/2.1/"
+JSDIR="kbox/samba/jkuery/www/${VER}/"
 EXCLUDEJS="excludejs.lst"
 TMP="/tmp"
 if [ -z "$1" ]
@@ -18,21 +18,21 @@ fi
 
 echo "deleting OS files"
 /usr/bin/find . -name ".*DS*" -exec rm {} \; 
-#TODO: add closure minification to these js files
-declare -a JSFILES=('jquery.jKuery.2.1.js' 'jquery.aboutjKuery.js');
-declare -a MINFILES=('jquery.jKuery.2.1.min.js' 'jquery.aboutjKuery.min.js');
+
+declare -a JSFILES=("jquery.jKuery.${VER}.js" 'jquery.aboutjKuery.js');
+declare -a MINFILES=("jquery.jKuery.${VER}.min.js" 'jquery.aboutjKuery.min.js');
 
 echo "" > ${EXCLUDEJS}
 for i in "${!JSFILES[@]}"
 do
     echo "     minifying ${JSDIR}${JSFILES[$i]}"
+# using web service for minification
     /opt/local/bin/curl -s \
 	-d compilation_level=SIMPLE_OPTIMIZATIONS \
 	-d output_format=text \
 	-d output_info=compiled_code \
 	--data-urlencode "js_code@$JSDIR${JSFILES[$i]}" \
-        $MINIFIER \
-     	> ${JSDIR}${MINFILES[$i]}
+        $MINIFIER > ${JSDIR}${MINFILES[$i]}
     echo "     ${JSDIR}${MINFILES[$i]} created"
 #some versions of tar (Mac) don't support --delete from tar balls so use exclude instead
     echo "*${JSDIR}${JSFILES[$i]}*" >> ${EXCLUDEJS}

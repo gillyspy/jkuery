@@ -36,8 +36,8 @@
 (function($){
 
   
- // depend upon jQuery
-  // do not allow two jKuery
+ // depend upon jQuery ; 
+  // do not allow two jKuery ; 
   if(!$.fn.jquery || window.jKuery){
     return false;
   }
@@ -53,7 +53,7 @@
 
   var fn = {
     dotDotDot : function(e)
-    { // an animated "..." that can be used while waiting for a response
+    { // an animated "..." that can be used while waiting for a response ; 
       setInterval( 
 	function() {
 	  var elTxt = $(e).text();
@@ -91,7 +91,7 @@
       console.log('todo');
       //TODO  a way to add on to this.sources;
     }  // end AddSource;
-  }; // end fn
+  }; // end fn ; 
 
   window.jKuery = { }; // global on window;
   var jKuery = window.jKuery;
@@ -101,7 +101,7 @@
   }; 
 
   var m = 
-	{ // basic set methods
+	{ // basic set methods ;
 	  setFormat : function(format)
 	  {
 	    this.format = format || (this.format || 1);
@@ -142,20 +142,20 @@
 
 	  updateObj$ : function(e)
 	  {
-	    var $e = $(e); // make sure jQuery attached to it
+	    var $e = $(e); // make sure jQuery attached to it ; 
 	    $e.html(this.getData());
 	    return this;
 	  }
 	}
-  ; // end var
+  ; // end var ; 
 
   fn.setget = function(action,oVar) 
-  {  // this is used as a setter for the basic variables in jKuery.JSON object
+  {  // this is used as a setter for the basic variables in jKuery.JSON object ; 
     var i,
 	method;
     if(typeof oVar == "string"){
       method = action + oVar.slice(0,1).toUpperCase() + oVar.slice(1);
-      if(m[method]){ // call setX method
+      if(m[method]){ // call setX method ; 
 	return m[method].apply(this, Array.prototype.slice.call(arguments,2) );
       } 
     }else if(oVar instanceof Array){
@@ -166,19 +166,19 @@
       $.error('Neither ' + oVar.toString() + ' nor ' + method + ' are avaialble');
     }
     return false;
-  }; // end setget
+  }; // end setget ; 
 
-  fn.set = function(oVar){ // setter stub
+  fn.set = function(oVar){ // setter stub ; 
     return fn.setget.call(this,'set',oVar);
   };
-  fn.get = function(oVar){ // getter stub
+  fn.get = function(oVar){ // getter stub ; 
     return fn.setget.call(this,'get',oVar);
   };
 
-//TODO obsolete? 
+//TODO obsolete?  ; 
   fn.Req = function(hash,my) 
-  { // utility to lookup cached JSON requests references by hash
-//    if(!isNaN(parseFloat(hash)) && isFinite(hash))
+  { // utility to lookup cached JSON requests references by hash ; 
+//    if(!isNaN(parseFloat(hash)) && isFinite(hash)) ; 
   //    hash = hash.toString();
     if( jKuery.LastJSON && jKuery.LastJSON[hash] && jKuery.LastJSON[hash] instanceof jKuery.JSON){
       return jKuery.LastJSON[hash];
@@ -194,8 +194,8 @@
     {
       JSON : function(name,parms,source,qtype,run)
       {
-	//TODO add a timer for JSON so that it can update itself on an interval.
-	// jKuery.LastJSON[hash] is a reference to each instance
+	//TODO add a timer for JSON so that it can update itself on an interval. ; 
+	// jKuery.LastJSON[hash] is a reference to each instance ; 
 	var state='new',
 	    data = {},
 	    hash,
@@ -206,13 +206,13 @@
 	source = source || 'jkuery';
 	  run = !!run;
 	//TODO: basic test to see if API is accessible otherwise give error; 
-	//TODO: allow this to be called with an object of settings instead
+	//TODO: allow this to be called with an object of settings instead ; 
 	qtype = qtype || 'sqlp';
 	hash = fn.hash(name,parms,source,qtype);
 
 	if(!jKuery.LastJSON || !jKuery.LastJSON[hash]) {
 	  $.error("You must instantiate this via jKuery.newJkuery method");
-//	  this = jKuery.getJKVersion(); // make it the same as a simple object if instantiated in the wrong way
+//	  this = jKuery.getJKVersion(); // make it the same as a simple object if instantiated in the wrong way ; 
 	  return false;
 	}
 
@@ -285,18 +285,20 @@
 	// use the timer function to keep data set up to date.  Your callback might be to repopulate the item with data;
 	this.setInterval = function(t,callback)
         {
-          t = (t > 1000 || t == 0) ? t : undefined;  // min 1 second; use 0 to clear only;
-          // an undefined time will yeield a 15 min timer
-          // any new value between 0 and 1000 will keep the exising timer
-          // 0 to end the timer
-          // > 1000 to set it again
+          t = (t > 1000 || t == 0) ? t : undefined;   
+	    /* min 1 second; use 0 to clear only;
+            // an undefined time will yeield a 15 min timer
+            // any new value between 0 and 1000 will keep the exising timer
+            // 0 to end the timer
+            // > 1000 to set it again
+	    */ 
           interval = t !=undefined ? t : ( interval || (15*60*1000)); //15 mins;
           setTimer.call(this,callback);
           return this;
         };
 
 	this.setAjax =  function(callback) 
-	{  //  a helper function to run the ajax call that will get data from kbox into the object
+	{  //  a helper function to run the ajax call that will get data from kbox into the object ; 
 	  if(!(this instanceof jKuery.JSON)){
 	    throw 'jKuery JSON object not instantiated';
 	  }
@@ -328,7 +330,7 @@
 	      error : function(a,b,c)
 	      {
 		data = {};
-		  // set responseJSON even in an error condition for convenience
+		  // set responseJSON even in an error condition for convenience ; 
 		$.extend(data,a.responseJSON); 
 		data.message = b+': '+c;
 	      }
@@ -343,20 +345,20 @@
 	  }
 
 	  return ajaxSettings;
-	}; // end setData
+	}; // end setData ; 
 
 	if(run){
-	  this.runAjax(); // optionally make the call for the data
+	  this.runAjax(); // optionally make the call for the data ; 
 	}
       } // end jKuery.JSON constructor;
     }
-  ); // end extend
+  ); // end extend  ; 
 
-  $.extend(  // object merge
-    true, //deep copy
-    jKuery.JSON.prototype, //target object
-    m, // specific closure methods
-    {   // additional prototype functions
+  $.extend(  // object merge ; 
+    true, //deep copy ; 
+    jKuery.JSON.prototype, //target object ; 
+    m, // specific closure methods ; 
+    {   // additional prototype functions ; 
       buildAjaxURL : function()
       {
 	var p,i,l,encode;
@@ -371,10 +373,10 @@
 	  + '/' + encode.slice(1, l).join('/');
       }, // end buildAjaxURL;
 
-      //TODO: obsolete?
+      //TODO: obsolete? ; 
       analyzeConfig : function(){
 	var i, reqd;
-	// minimum required parameters listed here
+	// minimum required parameters listed here ; 
 	reqd = ['Name','parms'];
 	for(i = 0; i< reqd.length; i++){
 	  if(this[reqd[i]] === undefined){
@@ -385,7 +387,7 @@
 
       hasData : function()
       {
-	// helper to see if a JSON call function returned data or not
+	// helper to see if a JSON call function returned data or not ; 
 	if (this.data.count && this.data.count > 0){
 	  return true;
 	} 
@@ -406,11 +408,11 @@
       case 2: // report direct;
       source = qtype = 'report';
       break;
-      case 3: // rule via JKUERY.JSON
+      case 3: // rule via JKUERY.JSON ; 
       source = 'jkuery';
       qtype = 'rule';
       break;
-      case 4: // report via JKUERY.JSON
+      case 4: // report via JKUERY.JSON ; 
       source = 'jkuery';
       qtype = 'report';
       break;
@@ -425,30 +427,30 @@
 
       /* examples: 
        * jKuery.newJkuery('GetUser','John Doe');
-       * jKuery.newRule(59,'13345');  // rule
-       * jKuery.newReport(1,'Bob-XP',true); // run report #100 against variable Bob-XP and process it now
+       * jKuery.newRule(59,'13345');  // rule 
+       * jKuery.newReport(1,'Bob-XP',true); // run report #100 against variable Bob-XP and process it now 
        */
       var patt = /^.*[^\/]\/+[^\/].*$/;
       if ( patt.test(a) ) 
-      {	// it's an url
+      {	// it's an url ; 
 	patt = /^(http.?:\/\/[^\/]+|..)\/(jkuery|rule|report)\/([^\/]+)(?:\/|((?:\/[^\/?]+)+))(?:[?](.*))?$/;
 	var url = a.match(patt);
-	source = url[2]; // e.g. "rule"
+	source = url[2]; // e.g. "rule" ; 
 	name = url[3];
-	parms = url[4].split('/').slice(1); // parms array
-	qtype = url[5].match(/query_type=[^=]+/); // query string
+	parms = url[4].split('/').slice(1); // parms array ; 
+	qtype = url[5].match(/query_type=[^=]+/); // query string ; 
 	doRun = parms || true; 
       } else {
 	name = a;
 	parms = b;
 	doRun = e || false;
 	if(f !== undefined){
-	  // when f is defined then f is the flag
+	  // when f is defined then f is the flag ; 
 	  qtype = f;
 	  doRun = f;
 	}
       }
-      if(!jKuery.LastJSON){ // only create this when needed
+      if(!jKuery.LastJSON){ // only create this when needed ; 
 	jKuery.LastJSON = {};
       }
       var hash = fn.hash(name, parms, source, qtype);
@@ -482,7 +484,7 @@
     for ( i = 0; i < strlen; i++ ) {
       c = s.charCodeAt( i );
       hash = ((hash << 5) - hash) + c;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = hash & hash; // Convert to 32bit integer ; 
     }
     return 'H'+hash.toString();
   }; // end hash;
@@ -492,7 +494,7 @@
     var VersionTest = jKuery.newJkuery('jKuery Version','',false); // even failed requests return the version;
     VersionTest.setTimeout(1000);
     return VersionTest;
-    //TODO
+    //TODO ; 
     /*
      * alls calls return the version but there may not be any accessible services so 
      * a simple call to http://host/jkuery/0 will return the version albeit with a "failed" status code.  
@@ -506,15 +508,77 @@
 	var VersionTest = jKuery.newJkuery('K1000 Version','',false);
 	VersionTest.setTimeout(1000);
 	return VersionTest;
-    }
+    }; // end getKVersion ;
+
+    jKuery.getLastTicketChangeId = function()
+    {
+	//TODO : add version diffs e.g. 6.0 ; 
+	var val = undefined;
+	$('#ticket_history_tbody')
+	    .find('input[name^="fields\\[existing_change_owners_only\\]"')
+	    .eq(0)
+	    .each( 
+		function(){
+		    var n = $(this).attr('name');
+		    val = n.substring('fields[existing_change_owners_only]['.length,n.length-1);
+		}
+	    );
+	return val;
+    }; // end getLastTicketChange ; 
+
+    jKuery.getQueueId = function()
+    {
+	if($('#ticket_form').find('input[name="fields\\[queue_id\\]"]').length > 0 {
+	    return $('#ticket_form').find('input[name="fields\\[queue_id\\]"]').val();
+	} else {
+	    return undefined;
+	}
+    } // end getQueueId ;
+
+    jKuery.getTicketId = function()
+    {
+	//TODO: add version differences; 
+	// this technique returns the actual ID.  e.g. 4 not 0004;
+	if( $('#ticket_form').find('input[name="attr\\[ID\\]"]').length > 0 ) {
+	    return $('#ticket_form').find('input[name="attr\\[ID\\]"]').val();
+	} else {
+	    return undefined;
+	}
+    }; // end getTicketId ; 
+
+    jKuery.getLocalizedPageName = function()
+    {
+	if($('#pageName > h2').length > 0){
+	    return $('#pageName > h2').text();
+	} else {
+	    return undefined;
+	}
+    } // end getLocalizedPageName ;
+
+    jKuery.runRuleForID = function(n)
+    {
+	var t = undefined, //ticket number  //TODO arg[1];
+	q = jKuery.getQueueId(), // queue number
+	c = undefined; //change nuber to use //TODO arg[2];
+	/*
+	 * n is the rule to run
+	 * if n is an array then run all those rules
+	 * if n is string then that is the name of the rule to run
+	 * if n is integer then that is the ID of the rule to run
+	 * if arg[1] is missing then lookup the current ticket number
+	 * if arg[2] is missing then use latest change number
+	 * if 
+	 */ 
+	// TODO: ; 
+    } // end runRuleForID ;
 
   $.extend(
     true, 
     jKuery, 
-    { // make global
+    { // make global ; 
       Lib :  function()
       {
-	//TODO make sure that it's being implemented as a constructor only
+	//TODO make sure that it's being implemented as a constructor only ; 
 	this.sources = {
 	  'aboutjKuery' : {
 	    method : 'aboutjKuery',

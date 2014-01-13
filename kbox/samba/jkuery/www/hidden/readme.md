@@ -1,5 +1,5 @@
 Created by Gerald Gillespie 2013
-jkuery v2.1
+jkuery v2.2
 readme.md
 
 Welcome to jKuery!
@@ -349,9 +349,17 @@ Revision History
 * unit testing in QUnit
 * build script for kbin
 
+2.2
+===
+* support CRUD operations in RESTful way (GET,POST,PUT,DELETE,OPTIONS methods)
+** (legacy -- can still do INSERTs, etc via GET/POST if using sqlpi query type)
+* support invoking full ticket rules (update included) on a given ID
+* more jKuery convenience functions for things like ticket #, change #, pagename, etc
+* support for K1 6.0
+
 (future)
 ========
-* support for K1000 6.0
+* support for K1000 6.1
 * support for K2000 ?.?
 * support for K3000 ?.?
 * invoke a ticket rule -- not just capture the query

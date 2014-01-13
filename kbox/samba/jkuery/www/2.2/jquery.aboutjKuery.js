@@ -108,17 +108,6 @@ if( window.$ && window.jQuery == window.$){ // if $ exists and it is equivalent 
     }
   };
 
-  /* example call to this plugin.  see z.default.js */
-  /*
-   $(document).ready(  // all you code goes in one (or many) of these handlers
-   function($)
-   { 
-   $('#aboutLink')
-   .aboutjKuery({"style":{"font-style": "bold","color":"red","font-size":"1.2em"}}); 
-   }
-   ); // end document loaded
-   /* */
-  
 })(jQuery,jKuery);
 
 

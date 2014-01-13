@@ -42,7 +42,7 @@ include_once('common.inc');
 
 // Use true to get additional script debug information, and prevent file deletion use false to turn it off.
 $debugit = true; 
-$version = "2.1";
+$version = "2.2";
 $verMatch = false;
 $tryVersion = array("5.3.53053", "5.4.70402", "5.4.76847", "5.5.90545", "5.5.85228", "5.5.90546");
 $Kversion = get_version_number();

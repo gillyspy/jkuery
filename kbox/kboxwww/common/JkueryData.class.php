@@ -21,17 +21,23 @@ class JkueryData{
   private $statusCode;
   private $header;
   private $httpMsg;
+  private $method;
 
-  public function __construct($id,$org_id,$query_type,$debug=false){
-    $this->query_type = $query_type;
+  public function __construct($id,$org_id,$method,$query_type,$debug=false){
+    $this->debug = array('status' => $debug);
+    $this->Log('constructing');
+    $this->query_type = $this->getQueryType($query_type); // TODO: force QUERY_TYPE be used when it exists ;
     $this->version = $this->getVersion(); 
     $this->org = (int)$org_id; //TODO get ORG from id for now; 
     $this->message = "";
     $this->format = 1;
     $this->purpose = "";
+    // TODO: have a status code instead ; 
+    $this->statusCode = NULL;
     $this->status = "success";
     $this->json = ""; //TODO?? make this call a function to set it to an empty JSON object {} ;
-    $this->debug = array('status' => $debug);
+    $this->method = $method;
+    $this->setSqlType($method); // SELECT (GET/POST), INSERT/UPDATE (PUT/POST), DELETE (DELETE)
     $this->Log("constructed");
 
     if( $id != (string)(int)$id ){
@@ -60,9 +66,46 @@ class JkueryData{
       $this->Log($this->purpose);
       $this->Log($this->status);
       $this->Log($this->json);
+      $this->Log($this->sqlType);
     }
 
   } // end construct ; 
+
+  private function getQueryType($query_type='sqlp'){
+    // for backward compatibility only set it here if JSON.QUERY_TYPE exists for this id ;
+    try{
+      $db = dbConnect();
+      $sql = <<<EOT
+	select ifnull(QUERY_TYPE,'sqlp') from JKUERY.JSON limit 1
+EOT;
+      $qt = $db->GetOne($sql);
+      return $qt; // override given type ;
+     } catch(Exception $e){
+       $this->Log("error: ".$e->GetMessage());
+       return $query_type; // return given type ;
+     }
+  } // end setQueryType ;
+
+  private function setSqlType($m)
+  {
+    switch(strtoupper($m)){
+    case 'PUT':
+      $this->sqlType = 'UPDATE';
+      break;
+    case 'DELETE':
+      $this->sqlType = 'DELETE';
+      break;
+    case 'POST':
+      $this->sqlType = 'INSERT'; // or replace
+      break;
+    case 'GET':
+    case 'HEAD';
+    case 'OPTIONS':
+    default:
+      $this->sqlType = 'SELECT';
+      break;
+    }
+  } // end setSqlType ; 
 
   private function getIDforName($s)
   {
@@ -102,6 +145,7 @@ class JkueryData{
       $this->debug['id'] = $this->id;
       $this->debug['statuscode']= $this->statusCode;
       $this->debug['http message']=$this->httpMsg;
+      $this->debug['CRUD']=$this->sqlType;
     }
   } // end setDebugData ;
 
@@ -146,6 +190,7 @@ class JkueryData{
     $dbSys = dbConnectSys();
     switch($this->query_type){
     case 'rule':
+    case 'runrule':
       $sql = <<<EOT
 	select 1
 	from JKUERY.JSON J
@@ -222,14 +267,14 @@ EOT;
     return (bool)($dbSys->GetOne($sql));
 } // end isUserAllowedJSON ; 
 
-  public function succeed($sc=200, $msg=false){
+  private function succeed($sc=200, $msg=false, $exit=true){
     $this->Log("succeeding");
     $this->status  = $msg ? $msg : "success";
     $this->setHeader($sc,'1.1',$this->status);
-    $this->printJSON();
+    $this->printJSON($exit);
   } // end succeed;
   
-  public function fail($sc=400,$msg=false){
+  public function fail($sc=400,$msg=false, $exit=true){
     $this->Log("failing");
     $this->status = "fail";
     $this->format = 0;
@@ -237,10 +282,10 @@ EOT;
 
     $this->json = "{}";
     $this->setHeader($sc,'1.0', $this->message);
-    $this->printJSON();
+    $this->printJSON($exit);
   } // end fail; 
 
-  public function validatedSqlObj($obj, $objtype='field'){
+  private function validatedSqlObj($obj, $objtype='field'){
     // if you are passing in a query string then we need to validate it since it wasn't prepared;
     // TODO: compare it against a list of objects that they are allowed to use;
     if($objtype == 'value'){
@@ -255,27 +300,75 @@ EOT;
   } 
   // end validatedSQLObj;
 
-  public function getJSONBuilder($id,$db,$type="SQLstr",$where=false){
+  private function getJSONBuilder($id,$db,$type="SQLstr",$where=false){
     if(!$where){
       $where = " WHERE ID = $id";
     }
     $str  = $db->GetOne("select $type from JKUERY.JSON $where  UNION ALL select 'fail' $type" );
+    // TODO : if return is NULL then it's a 404 (or 403) ; 
     return $str;
   } 
   // end getJSONBuilder;
        
-  public function getJkueryStmt(){
+  private function getMethodColName(){
+    switch($this->sqlType){
+    case 'INSERT':
+      return 'INSERTstr';
+      break;
+    case 'REPLACE':
+    case 'UPDATE':
+      return 'UPDATEstr';
+      break;
+    case 'DELETE':
+      return 'DELETEstr';
+      break;
+    case 'SELECT':
+    default:
+      return 'SQLstr';
+      break;
+    }
+  } // end getMethodColName;
+
+  private function advertiseMethods(){
+    $db = dbConnect();
+    $sql = <<<EOT
+	select trim(trailing ',' from 
+       	       concat('Allow:',
+			' OPTIONS,',
+       			if(ifnull(SQLStr,'') != '',' GET, HEAD,',''),
+       			if(ifnull(INSERTStr,'') != '',' POST,',''),
+       			if(ifnull(UPDATEStr,'') != '',' PUT,',''),
+       			if(ifnull(DELETEStr,'') != '',' DELETE,','')
+       		)
+    	) ALLOW from JKUERY.JSON where  ID = $this->id
+	union all 
+    	select 'Allow: ' ALLOW
+EOT;
+    return $db->GetOne($sql);
+  } // end advertiseMethods ;
+
+  private function getJkueryStmt($col=false){
     $id = esc_sql($this->id);
-    $sql = "select ORG, SQLstr, PURPOSE, QUERY_TYPE from JKUERY.JSON where ID = $id";
+    $col = (!$col ?  $this->getMethodColName() : $col);
+    $sql = <<<EOT
+	select 
+	       ORG, 
+	       ifnull($col,'') as runSQL, 
+	       PURPOSE, 
+	       QUERY_TYPE 
+	from JKUERY.JSON 
+	where ID = $id
+EOT;
     $db = dbConnect();
     $p_sql = $db->GetRow($sql);
     $this->purpose = $p_sql['PURPOSE'];
     $this->org = $p_sql['ORG'];
-    $this->getStmtFromType( $p_sql['SQLstr'], $p_sql['QUERY_TYPE'] );
-    return true;
+    return [ $p_sql['runSQL'], $p_sql['QUERY_TYPE'] ];
+    //    $this->runStmtFromType( $p_sql['runSQL'], $p_sql['QUERY_TYPE'] );
+    // return true;
   }       // end getJkueryStmt;
 
-  public function validateJSON($json){
+  private function validateJSON($json){
     if( json_decode($json)  === null) {
       // $ob is null because the json cannot be decoded ; 
       $this->message = "the static JSON could not be decoded. Make sure it is well-formed";
@@ -284,144 +377,173 @@ EOT;
     return true;
   }
 
-  public function getStmtFromType($sql,$type){
+  private function runStmt($sql,$sc=200){
     $db = dbConnect();
     $this->setDebugSQL($sql);
     $this->setDebugParms($this->p);
     $this->query_type = $type;
-    //TODO  debug['p'] ?     
-    switch($type){
-    case 'json': // use when you want straight well-formed JSON from the JKUERY.SQLstr;
-      // $sql is actually a JSON string here;
-      $this->format = 0;
-      if($this->validateJSON($sql) ){
-	$this->status  =  "success";
-	$this->json = $sql;
-	$this->succeed(200,'success');
-      } else {
-	$this->status = "error";
-	$this->fail(400,'bad request');
-      }
-      break;
-    case 'sqlpi': // similar to sqlp except when updating / inserting data;
-      $stmt = $db->Prepare($sql);
-      $this->format = 2; // special format here;
-      if( $this->getData( $stmt, $this->p ) ) {
-	$this->format = 1;
-	$this->succeed(200,'success');
-      }  else {
-	$this->status = "fail";
-	$this->fail(400,'bad request');
-      }
-	
-    break;
-  case 'sqlpJSON': // use for a special case to build where clause stored in a different ID ; 
-    // iterate over the json items in the where variable;
-    // example where ;
-    /*
-     * where: {"whereclause0":{"conjunction":"","field":"HD_TICKET.CREATED","operator":" > date_sub(now(), interval 24 hour) "}} 
-     */
-    $where = isset($_POST['where']) ? $_POST['where'] : '{}';
-    $this->Log('where: ' .$where);
-    $wherejson = json_decode($where, true);
-    $extrawhere ='';
-    foreach ($wherejson as $_wherejson) {
-      if( $_wherejson['refreshlist']=='yes' ){ // if refresh;
-      $extrawhere =  ' 1=1 ) '
-        .' '. $this->validatedSqlObj($_wherejson['conjunction'])  // ) or ( ;
-	  .' '. $this->validatedSqlObj($_wherejson['field'])  // HD_TICKET ;
-	    .'  '. $this->validatedSqlObj($_wherejson['operator'])  // in (blah) ;
-	      .')) and ((('. $extrawhere ;
-	      break; 
-      }  // end refreshlist   ;
-      else { // else just plain  ;
-      $extrawhere .= " ".$this->validatedSqlObj( $_wherejson['conjunction'] ) ;
-      if ( (int)$_wherejson['subq'] > 0 ){ // if subquery in play ;
-        // look up the subquery ;
-	  $subval = isset($_wherejson['value']) ? ",".$this->validatedSqlObj($this->validatedSqlObj( $_wherejson['value'] ,'value'), 'value') : '';
-	    $sub_sql = $db->GetOne("select replace(SQLstr,':JSON',"
-	     ."concat( ". $this->validatedSqlObj( $_wherejson['subfield'],'value')
-	      .",' ',". $this->validatedSqlObj($_wherejson['operator'],'value')." ".$subval." ) )"
-	       ." from JKUERY.JSON"
-	        ." where ID= ".$_wherejson['subq']); // e.g. in (select COLX from TABLE where (:JSON) ) ; 
-		  $extrawhere .= " ". $this->validatedSqlObj( $_wherejson['field'] ) ." ". $sub_sql ;
-		  } else {
-		    $extrawhere .=" ".$this->validatedSqlObj( $_wherejson['field'] )
-		        ." ". $this->validatedSqlObj( $_wherejson['operator'] );
-			  if(isset($_wherejson['value'])){
-			      $extrawhere .= " ".$this->validatedSqlObj($_wherejson['value'],'value' );
-			        }
-				} // end if subquery ;
-      } // end else just plain ;
-    } // end where clause for loop ;
-
-    $where = " where ID= $this->id";
-    $p_sql = $db->GetOne("select REPLACE(SQLstr,':JSON',".esc_sql($extrawhere).") from JKUERY.JSON ". $where);
-    $this->Log($p_sql);
-    $this->Log(print_r($this->p,true));
-    $stmt = $db->Prepare($p_sql);
-    if( $this->getData($stmt , $this->p) ){
+    $stmt = $db->Prepare($sql);
+    $this->Log("runStmt: ".print_r($stmt,true));
+    if( $this->getData( $stmt, $this->p) ){
+      $this->Log("runStmt success");
       $this->status = "success";
-      $this->succeed(200,'success');
+      $this->succeed($sc,'success');
     } else {
+      $this->Log("runStmt fail");
       $this->status = "fail";
       $this->fail(400,'bad request');
     }
-break;
-    case 'sql': // similar to sqlp except using replacements ;
-      $i = 1;
-      foreach($_p as $__p){
-      $replacesql = " REPLACE($sql,':p$i',$__p)";
-      $i++;
-      }
-      $stmt = $db->GetOne("select $replacesql");
-      if( $this->getData( $stmt, false ) ) {
-      $this->succeed(200,'success');
-      } else {
-	$this->status = "fail";
-	$this->fail(400,'bad request');
-      }
-      break;
-    case 'report': // similar to rule but from SMARTY_REPORT table;
-      $stmt = $this->getReportStmt(false);
-      if( $this->getData($stmt) ) { 
-	$this->succeed(200,'success');
-      } else {
-	$this->status = "fail";
-	$this->fail(400,'bad request');
-      }
-      break;
-    case 'rule': // use this when you want the rule referenced from JKUERY table ; 
-      // for example if you want a rule from another ORG ; 
-      $stmt = $this->getRuleStmt(false);
-      if( $this->getData($stmt, $this->p) ){
-      $this->succeed(200,'success');
-      } else {
-	$this->status = "fail";
-	$this->fail(400,'bad request');
-      }
-      break; 
-    case 'sqlp': // most common case
-      $stmt = $db->Prepare($sql);
-      $this->Log("SQLP: ".print_r($stmt,true));
-      if( $this->getData( $stmt, $this->p) ){
-	$this->Log("success");
-	$this->status = "success";
-	$this->succeed(200,'success');
-      } else {
-	$this->status = "fail";
-	$this->fail(400,'bad request');
-      }
-      break;
-    case 'loaded': //TODO;
-    default: 
-      $this->status = "fail";
-      $this->fail(400,"invalid query type");
-      break;
-    } // end switch ;
-  } // end getStmtFromType;
+  } // end runStmt ;
+  
+  private function runStmtFromType($sql,$type){
+    
+    $db = dbConnect();
+    $this->setDebugSQL($sql);
+    $this->setDebugParms($this->p);
+    $this->query_type = $type;
+    if($sql == '') {
+      $this->fail(405); // METHOD NOT ALLOWED ; 
+    } else {
+      //TODO  debug['p'] ?     ;
+      switch($type){
+      case 'json': // use when you want straight well-formed JSON from the JKUERY.SQLstr field;
+	// $sql is actually a JSON string here;
+	$this->format = 0;
+	if($this->validateJSON($sql) ){
+	  $this->status  =  "success";
+	  $this->json = $sql;
+	  $this->succeed(200,'success');
+	} else {
+	  $this->status = "error";
+	  $this->fail(400,'bad request');
+	}
+	break;
+      case 'sqlpi': // similar to sqlp except when updating / inserting data;
+	$stmt = $db->Prepare($sql);
+	$this->format = 2; // special format here;
+	if( $this->getData( $stmt, $this->p ) ) {
+	  $this->format = 1;
+	  $this->succeed(200,'success');
+	}  else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+	
+	break;
+      case 'sqlpJSON': // use for a special case to build where clause stored in a different ID ; 
+	// iterate over the json items in the where variable;
+	// example where ;
+	/*
+	 * where: {"whereclause0":{"conjunction":"","field":"HD_TICKET.CREATED","operator":" > date_sub(now(), interval 24 hour) "}} 
+	 */
+	$where = isset($_POST['where']) ? $_POST['where'] : '{}';
+	$this->Log('where: ' .$where);
+	$wherejson = json_decode($where, true);
+	$extrawhere ='';
+	foreach ($wherejson as $_wherejson) {
+	  if( $_wherejson['refreshlist']=='yes' ){ // if refresh;
+	    $extrawhere =  ' 1=1 ) '
+	      .' '. $this->validatedSqlObj($_wherejson['conjunction'])  // ) or ( ;
+	      .' '. $this->validatedSqlObj($_wherejson['field'])  // HD_TICKET ;
+	      .'  '. $this->validatedSqlObj($_wherejson['operator'])  // in (blah) ;
+	      .')) and ((('. $extrawhere ;
+	    break; 
+	  }  // end refreshlist   ;
+	  else { // else just plain  ;
+	    $extrawhere .= " ".$this->validatedSqlObj( $_wherejson['conjunction'] ) ;
+	    if ( (int)$_wherejson['subq'] > 0 ){ // if subquery in play ;
+	      // look up the subquery ;
+	      $subval = isset($_wherejson['value']) ? ",".$this->validatedSqlObj($this->validatedSqlObj( $_wherejson['value'] ,'value'), 'value') : '';
+	      $sub_sql = $db->GetOne("select replace(SQLstr,':JSON',"
+				     ."concat( ". $this->validatedSqlObj( $_wherejson['subfield'],'value')
+				     .",' ',". $this->validatedSqlObj($_wherejson['operator'],'value')." ".$subval." ) )"
+				     ." from JKUERY.JSON"
+				     ." where ID= ".$_wherejson['subq']); // e.g. in (select COLX from TABLE where (:JSON) ) ; 
+	      $extrawhere .= " ". $this->validatedSqlObj( $_wherejson['field'] ) ." ". $sub_sql ;
+	    } else {
+	      $extrawhere .=" ".$this->validatedSqlObj( $_wherejson['field'] )
+		." ". $this->validatedSqlObj( $_wherejson['operator'] );
+	      if(isset($_wherejson['value'])){
+		$extrawhere .= " ".$this->validatedSqlObj($_wherejson['value'],'value' );
+	      }
+	    } // end if subquery ;
+	  } // end else just plain ;
+	} // end where clause for loop ;
 
-  public function getVersion(){
+	$where = " where ID= $this->id";
+	$p_sql = $db->GetOne("select REPLACE(SQLstr,':JSON',".esc_sql($extrawhere).") from JKUERY.JSON ". $where);
+	$this->Log($p_sql);
+	$this->Log(print_r($this->p,true));
+	$stmt = $db->Prepare($p_sql);
+	if( $this->getData($stmt , $this->p) ){
+	  $this->status = "success";
+	  $this->succeed(200,'success');
+	} else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+break;
+
+      case 'sql': // similar to sqlp except using replacements ; 
+	//TODO: augment with PUT/DELETE mechanism
+	$i = 1;
+	foreach($_p as $__p){
+	  $replacesql = " REPLACE($sql,':p$i',$__p)";
+	  $i++;
+	}
+	$stmt = $db->GetOne("select $replacesql");
+	if( $this->getData( $stmt, false ) ) {
+	  $this->succeed(200,'success');
+	} else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+	break;
+      case 'report': // similar to rule but from SMARTY_REPORT table;
+	$stmt = $this->getReportStmt(false);
+	if( $this->getData($stmt) ) { 
+	  $this->succeed(200,'success');
+	} else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+	break;
+      case 'rule': // use this when you want the rule referenced from JKUERY table ; 
+      case 'runrule': 
+	// for example if you want a rule from another ORG ; 
+	$stmt = $this->getRuleStmt(false);
+	if( $this->getData($stmt, $this->p) ){
+	  $this->runRule($this->p);
+	  $this->succeed(200,'success');
+	} else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+	break; 
+      case 'sqlp': // most common case ;
+	// TODO : use runStmt() instead ?  ; 
+	$stmt = $db->Prepare($sql);
+	$this->Log("SQLP: ".print_r($stmt,true));
+	if( $this->getData( $stmt, $this->p) ){
+	  $this->Log("success");
+	  $this->status = "success";
+	  $sc = isset($this->statusCode) ? $this->statusCode : 200;
+	  $this->succeed($sc,'success');
+	} else {
+	  $this->status = "fail";
+	  $this->fail(400,'bad request');
+	}
+	break;
+      case 'loaded': //TODO ;
+      default: 
+	$this->status = "fail";
+	$this->fail(400,"invalid query type");
+	break;
+      } // end switch ;
+    } // end if ;
+  } // end runStmtFromType; 
+
+  private function getVersion(){
     try{
       $db = dbConnectSys();
       $ver = $db->GetOne("select VALUE from KBSYS.SETTINGS where NAME = 'JKUERY_VERSION' UNION ALL select '1.2' VALUE");
@@ -431,9 +553,22 @@ break;
     $this->Log('ver: '.$ver);
     return $ver;
   }
-  // end getVersion;
+  // end getVersion ; 
 
-  public function getRuleStmt($nativeID){
+  private function getRuleID(){
+    $db = dbConnect();
+    $sql = <<<EOT
+	select 
+	R.ID 
+      	from HD_TICKET_RULE R 
+      	left join /*ORG implied */ JKUERY.JSON J on J.HD_TICKET_RULE_ID=R.ID 
+    	WHERE R.ID = $this->id
+EOT;
+    $this->Log($_p_sql);
+    return $db->GetOne($sql);
+  } // end getRuleID ;
+
+  private function getRuleStmt($nativeID){
     $db = dbConnect();
     if($this->query_type == "rule" && $nativeID){
       $where = " R.ID = ".$this->id;
@@ -457,7 +592,7 @@ $this->Log($_p_sql);
   } // end getRuleStmt;
  
 
-  public function getReportStmt($nativeID){
+  private function getReportStmt($nativeID){
     $db = dbConnect();
     if($this->query_type == "report" && $nativeID){
       $where = " R.ID = ".$this->id;
@@ -520,13 +655,28 @@ EOT;
     return json_encode($r,  JSON_FORCE_OBJECT);
   } // end formatJSON;
 
-  public function printJSON(){
+  private function printJSON($exit=true){
     $this->Log("printing....");
     header($this->header);
     header("Cache-Control: no-cache, must-revalidate");
     header("Expires: 0");
     header("Content-type: text/javascript");
-    print( $this->formatJSON() );
+    if($this->statusCode == 405 || $this->method == 'OPTIONS'){
+      header($this->advertiseMethods());
+    }
+    $this->Log('method: '.$this->method);
+    switch($this->method){
+    case 'GET':
+    case 'POST':
+    case 'PUT':
+    case 'DELETE':
+      print( $this->formatJSON() );
+      break;
+    } // leave out HEAD / OPTIONS
+
+    if($exit){
+      exit();
+    }
   } // end printJSON; 
 
   public function sourceType($p,$jautoformat){
@@ -537,13 +687,15 @@ EOT;
     $this->p = $p;
     switch($this->query_type){
     case 'rule':
+    case 'runrule':
       /*
        * use this when your source is a ticket rule -- you might not even have anything stored in JKUERY table ;
        *  this does not cover the scenario when you want to reference  rule from JKUERY table;
        */
       $stmt = $this->getRuleStmt(true);
       if($this->getData($stmt,$p)){
-      $this->succeed(200,'success');
+	$this->runRule($this->p);
+	$this->succeed(200,'success');
       } else {
 	$this->status = "fail";
 	$this->fail(400,'bad request');
@@ -557,7 +709,7 @@ EOT;
        */
       $stmt = $this->getReportStmt(true);
       if($this->getData($stmt)){
-      $this->succeed(200,'success');
+	$this->succeed(200,'success');
       } else {
 	$this->status = "fail";
 	$this->fail(400,'bad request');
@@ -567,6 +719,7 @@ EOT;
     default:
       // use this when you want to lookup the prepared object via JKUERY tables;
       $stmt = $this->getJkueryStmt();
+      $this->runStmtFromType( $stmt[0], $stmt[1]) ;
       break;
     } // end switch ; 
   } // end sourceType;
@@ -577,7 +730,7 @@ private function setHeader($statusCode, $protocolVer='1.0',$msg=false)
   $protocolVer = in_array( $protocolVer, $protos) ? $protocolVer : '1.0';
 
   $statusCode = (int)$statusCode;
-  $codes = array(400,401,403,404,500,200);
+  $codes = array(400,401,403,404,405,500,200,201,204);
   $statusCode = in_array( $statusCode, $codes) ? $statusCode : 400;
 
   $this->statusCode = $statusCode;
@@ -586,8 +739,11 @@ private function setHeader($statusCode, $protocolVer='1.0',$msg=false)
 		401 => 'Unauthorized',
 		403 => 'Forbidden',
 		404 => 'Not Found',
+		405 => 'Method Not Allowed',
 		500 => 'Internal Error',
-		200 => 'Success'
+		200 => 'Success',
+		201 => 'Created',
+		204 => 'No Content'
 		);
 
   $this->message = $msg ? $msg : $msgs[$statusCode];
@@ -624,7 +780,7 @@ private function mapSessionVar($names)
 	$name = $_SESSION['KB_PLATFORM'];
 	break;
       default:
-	// if we fall through then
+	// if we fall through then; 
 	$name = ':'.$name ;
       }
     } else {
@@ -636,6 +792,14 @@ private function mapSessionVar($names)
 }  // end mapSessionVar;
 
   function getData($stmt,$p=false){
+    /* 
+     * in Mysql it can be difficult to infer the last inserted record so
+     * if it's an insert then also return the object just inserted using
+     * the autoincrememnt ID (last_insert_id) when possible, otherwise,
+     * the JSON.SQLstr statement.  for the latter
+     * it is up to the JSON row creator to provide a SQLstr that is
+     * compatible with the PUTstr and DELETEstr
+     */
     try{
       $db=dbConnect();
       $this->Log($this->format);
@@ -653,7 +817,53 @@ private function mapSessionVar($names)
       case 1:
 	$this->Log('is set? '.isset($p[0]));
 	$this->Log('p: '.print_r($p,true));
-	$this->json = isset($p[0]) ? $db->GetAssoc($stmt,$p) : $db->GetAssoc($stmt);
+	// TODO: run statments appropriate to the method type;
+	switch($this->sqlType){
+	case 'INSERT':
+	  /* 
+	   * Here I want to run the insert and return the attributes associated with
+	   * the insert but for the json data I want to return the result of
+	   * the select statement that is associated with the insert
+	   * Do not use runStmt because that will go to success()/ fail() and exit()
+	   * and it was already called to get here for the INSERT
+	   */
+	  // execute the insert ; 
+	  
+	  $db->Execute($stmt,$p);
+	  $lastID = $db->Insert_ID();
+	  if($lastID != 0) {
+	    $this->p = [ $lastID ];
+	  }
+	  // then return result of insert via a select ;
+	  $this->Log('running SELECT for INSERT result');
+	  $this->setSqlType('GET'); // i.e. SELECT ; 
+	  $stmt = $this->getJkueryStmt('SQLstr')[0];
+	  // set $this->json to be the result of the select ; 
+	  $this->Log('select statement from insert: '.$stmt);
+	  $this->Log('p: '.print_r($this->p,true));
+	  if($this->getData( $stmt, $this->p )){
+	    // TODO: set statuscode to 201 somehow; 
+	    $this->statusCode = 201;
+	    return true;
+	  } else {
+	    return false;
+	  }
+	  break;
+	case 'UPDATE':
+	  $db->Execute($stmt,$p);
+	  $this->json = $db->GetAssoc(" select '' ");
+	  // TODO;
+	  break;
+	case 'DELETE':
+	  $db->Execute($stmt,$p);
+	  $this->json = $db->GetAssoc(" select '' ");
+	  //TODO; 
+	  break;
+	case 'SELECT':
+	default:
+	  $this->json = isset($p[0]) ? $db->GetAssoc($stmt,$p) : $db->GetAssoc($stmt);
+	  break;
+	}
 	break;
       } // end switch ; 
       $this->status="success";
@@ -665,5 +875,28 @@ private function mapSessionVar($names)
     }
     return true;
   } // end getData;
+
+  private function requireRule(){
+    if(!isset($this->Rule)){
+      require_once 'KTicketRule.class.php';
+      $this->Rule = new KTicketRule();
+    } 
+  } // end requireRule ;
+
+  private function runRule($p){
+    // use parms as the ticket, queue and optional change IDs respectively ; 
+    $this->requireRule();
+    if(isset($p[2])){
+      $this->Rule->RunRulesOnTicket($p[0],$p[1],$p[2]);
+    } elseif( isset($p[1]) ){ // has to have 0 and 1 set ; 
+      $this->Rule->RunRulesOnTicket($p[0],$p[1],NULL);
+    } else { 
+      /* TODO : call KTicketRule::RunRule
+       * usage : RunRule($id, $rule = NULL, $onTicketID = NULL, $changeId = NULL)
+       */
+      $this->Rule->RunRule( $this->getRuleID() );
+    }
+  } // end runRule ;
+  
 } // end class ;
 ?>

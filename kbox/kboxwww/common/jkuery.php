@@ -13,6 +13,7 @@
  ** "sqlp" mean you want to use the prepared statement
  **  "sql" mean you want to execute a canned statement with variables
  **  "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+ ** "runrule" means you want to do "rule" type but also run all the actions associated with that rule in the system (email, updates, etc)
  **  "report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
  **  while that would fail in reporting it is still allowed to be created
  ** "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
@@ -31,6 +32,8 @@ $_nop = array();
 $_p = array();
 
 function setParms($PARAMS, $OBJ){
+  KBLog('PARAMS: '.print_r($PARAMS,true));
+
   foreach ($PARAMS as $param) {
     global $$param;
     global $_query;
@@ -57,25 +60,60 @@ function setParms($PARAMS, $OBJ){
 // end setParms;
 
 // some defaults ;
-$debug=false; 
-$valid_session = false;  // default;
+$valid_session = false; 
 $referrer = $_SERVER[HTTP_ORIGIN];
 $needToken  = false;
 
+function getMethod(){
+  switch(strtoupper($_SERVER['REQUEST_METHOD'])){
+  case 'GET':
+    return $_GET;
+  case 'POST':
+    return $_POST;
+  case 'PUT':
+  case 'DELETE':
+    $arr = [];
+    foreach(explode('&',file_get_contents( 'php://input' )) as $parms){
+      $parms = explode('=',$parms);
+      $arr[$parms[0]] = $parms[1];
+    }
+    return  array_merge($_GET, $arr);
+  default:
+    return false;
+  }
+} // end getMethod; 
 
 $PARAMS = array('id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username','debug');
 
 //put all parms for the prepared statement into variable;
-//this set the $_p from a GET or POST;
-setParms($PARAMS, $_GET);
-setParms($PARAMS, $_POST);
+//this set the $_p from a GET or POST, PUT, DELETE
+setParms($PARAMS, getMethod() );
 
-$debug = ($debug =="true" || $debug == "1" || $debug == "on" ) ? true : false;
+if ( $_query['debug'] == "true" || $_query['debug'] == "1" || $_query['debug'] == "on" ) {
+  $dbg=true;
+} else {
+  $dbg=false;
+}
 
 //this sets the $_p from the URL so it could overwrite $_p from above but apps should not use both techniques
 if(isset($_GET['p']) && (string)$_GET['p'] !=''){
   $_p = explode( "/", $_GET['p']);
 }
+
+/*
+ * because of URL re-write using GET parms take the parms given in the rewrite and re-use them
+ * Again, this could overwrite parms used in the PUT/POST/DELETE but that's fine
+ */
+$fromGet = ['id','query_type'];
+foreach ($fromGet as $get) {
+  if(isset($_GET[$get]) && (string)$_GET[$get] != ''){
+    global $$get;
+    $$get = $_GET[$get];
+  } else {
+    break;
+  }
+} // end for each ; 
+KBLog('$_GET: '.print_r($_GET,true));
 
 /* id can be an integer or a string.  
  * if it is a string then it will lookup the ID from the JKUERY.JSON table
@@ -103,12 +141,18 @@ if(!$valid_session){  // try a token auth first.  this will allow requests from 
     }
 } // end if; 
 
-
-
-
+/*
+KBLog($id);
+KBLog($org_id);
+KBLog($query_type);
+KBLog(var_export($dbg));
+KBLog(print_r($_p,true));
+KBLog($valid_session);
+KBLog('method: '.$_SERVER['REQUEST_METHOD']);
+*/
 // instantiate the object; 
-$obj = new JkueryData($id,$org_id,$query_type,$debug); // instantiate the class;
-
+$obj = new JkueryData($id,$org_id,$_SERVER['REQUEST_METHOD'],$query_type,$dbg); // instantiate the class;
+KBLog('after JkueryData instantiated');
 if($valid_session){
 
   // token user allowed to see this object? ; 
@@ -116,6 +160,7 @@ if($valid_session){
     
     // does the definition exist? ;
     if($obj->validID()){
+      //TODO: run the proper type of request ; 
       $obj->sourceType($_p,$jautoformat);
       //    exit();
     } else { // 404;
@@ -130,6 +175,19 @@ if($valid_session){
   $obj->fail(401,"Unauthorized");
   //  include("401.php");
 }
+
+/*
+ *
+ * TODO: I want to be able to run all/some rules for a ticket ID (for any ID). 
+ * the ID would be substituted into the <TICKET_JOIN> phrase written in the Select Query
+ * or if missing then "and 
+ * to make this possible the query would need to be written such that the table you want to work with is aliased to "HD_TICKET" that way I could sub in "HD_TICKET.ID = X" for it.  
+ * the request will come as k1000/runrules/name/parm and that would imply
+ * that a rule called "name" would get run for value HD_TICKET.ID=parm
+ * a special value for "name" "?all?" would mean all rules would get run for that ID
+ * a special value for "name" "?save?" would mean all OTS rules would get run for that ID
+ * use case:  it is easy to obtain the ID values for many things in the UI.  Here you want to carry out an action on a specific object in the UI
+ */
 
 exit();
 

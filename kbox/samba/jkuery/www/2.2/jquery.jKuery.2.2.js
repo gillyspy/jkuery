@@ -15,12 +15,13 @@
  * K.aboutjKuery(); // implements the jKuery "about k1000" dialogue;
  *
  * data api usage: 
- * var K = new jKuery.JSON( request, parms [, source [, querytype [,  boolean]]])
+ * var K = new jKuery.JSON( request, [parms, [, method  [,  runflag]]])
  ** requestname   type: string or integer.  Name or ID of JKUERY.JSON row
- ** parms       type: string or Array of strings.  
- ** source      type: string
- ** querytype   type: string
- ** boolean     type : boolean
+ ** parms       type: Array of strings.
+ ** method      type : string of the request method / CRUD operation
+ ** source      is always looked up so don't specify it
+ ** querytype   is always looked up so don't specify it
+ ** runflag     type : boolean
  *
  * var K = new jKuery.JSON( url [, boolean])
  ** url   type : string of full request URL
@@ -192,23 +193,24 @@
     true, 
     window.jKuery,
     {
-      JSON : function(name,parms,source,qtype,run)
+      JSON : function(name,parms,source,qtype,run,method)
       {
 	//TODO add a timer for JSON so that it can update itself on an interval. ; 
 	// jKuery.LastJSON[hash] is a reference to each instance ; 
 	var state='new',
-	    data = {},
-	    hash,
-	    timer,
+	  data = {},
+	  hash,
+	  timer,
 	  interval,
-	    ajaxSettings = {},
-	    callback = [function(){}];
-	source = source || 'jkuery';
+	  ajaxSettings = {},
+	  callback = [function(){}];
+	  source = source || 'jkuery';
 	  run = !!run;
+	  method = method || 'GET'; // CREATE ; 
 	//TODO: basic test to see if API is accessible otherwise give error; 
 	//TODO: allow this to be called with an object of settings instead ; 
 	qtype = qtype || 'sqlp';
-	hash = fn.hash(name,parms,source,qtype);
+	hash = fn.hash(name,parms,source,qtype,method);
 
 	if(!jKuery.LastJSON || !jKuery.LastJSON[hash]) {
 	  $.error("You must instantiate this via jKuery.newJkuery method");
@@ -223,6 +225,9 @@
 	};
 	this.getQtype = function(){
 	  return qtype;
+	};
+	this.getMethod = function(){
+	    return method;
 	};
 	this.getSource = function(){
 	  return source;
@@ -239,28 +244,32 @@
 	this.getData = function()
 	{
 	  return data;//jKuery.LastJSON[hash].getData() || data || {};
+          /* TODO: somehow make the function attached to a deferred
+           * so that it will wait for results of the setData()
+           */
 	};
 
 	this.getName = function(){
 	  return name;
 	};
-
-	  this.setRun = function(bool){
-	      run = !!bool;
-	      return this;
-	  }; 
-
-	  this.runAjax = function(callback){
-            // returns the ajax & promise ; 
-	      this.setAjax(callback);
-	      return $.ajax(ajaxSettings);
-	  };
+	this.setMethod = function(m){
+	    method = m;
+	};
+	this.setRun = function(bool){
+	    run = !!bool;
+	    return this;
+	}; 
+	this.runAjax = function(callback){
+          // returns the ajax & promise ; 
+	  this.setAjax(callback);
+	  return $.ajax(ajaxSettings);
+	};
 	  
 	this.setData = function(callback)
-	  {
-	    // similar to runAjax except returns the object for chaining;
-	      this.runAjax(callback);
-	      return this;
+	{
+	  // similar to runAjax except returns the object for chaining;
+	  this.runAjax(callback);
+	  return this;
 	};
 
 	var setTimer = function(callback)
@@ -320,7 +329,7 @@
 		query_type :  this.getQtype()
 	      },
 	      dataType : 'json',
-	      type : 'POST',
+	      type : this.getMethod(),
 	      timeout : this.timeout,
 	      beforeSend: function(){ this.setState('refreshing');},
 	      success : function(d)
@@ -416,51 +425,168 @@
       source = 'jkuery';
       qtype = 'report';
       break;
+      case 6:
+      source = 'jkuery';
+      qtype = 'runrule';
+      break;
+      case 5:
       default: // jkuery direct;
       source = 'jkuery';
       qtype = qtype || 'lookup' ;
       break;
     } // end switch;
 
-    return function(a,b,e,f){ 
-      var name,parms,doRun;
+    return function(a,b,e,f,g){ 
+      if(a == undefined){
+        // trhow exception;
+        throw new Error('not enough arguments');
+      }
+      var name,parms,doRun,method,
+          i = 0,
+          hash,
+          url,
+          patt,
+          emethod = function(m){
+	    switch(m){
+	    case 'GET':
+	    case 'PUT':
+	    case 'POST':
+	    case 'OPTIONS':
+            case 'DELETE':
+	    case 'HEAD':
+	      method = m;
+              break;
+            case 'CREATE':
+              method = 'POST';
+              break;
+            case 'READ':
+              method = 'GET';
+              break;
+            case 'UPDATE':
+              method = 'PUT';
+              break;
+            case 'DELETE':
+              method = 'DELETE';
+              break;
+            default:
+              method = method || 'GET';
+              break;
+            }
+          }; // end emethod ;
+      // end vars;
 
       /* examples: 
-       * jKuery.newJkuery('GetUser','John Doe');
-       * jKuery.newRule(59,'13345');  // rule 
-       * jKuery.newReport(1,'Bob-XP',true); // run report #100 against variable Bob-XP and process it now 
+       * when method and execution flag are missing then default is "GET" for method
+       * and false for immediate execution;
+       * jKuery.newJkuery('GetUser',['John Doe']);
+       * jKuery.newJkurey('GetUserByFirstLast',['John','Doe'],true);
+       * jKuery.newRule(59,['13345']);  // rule 
+       * jKuery.newReport(100,['Bob-XP'],true); // run report #100 against variable Bob-XP and process it now
+       * jKuery.newRunRule('myjkueryaliasforrule',[12345]);
+
+       * execution flag and request method can be in any order:
+       * jKuery.newJkuery('User',['John Doe'],'DELETE');
+       * jKuery.newJkuery('User',['John Doe'],'GET',true);
+       * jKuery.newJkuery('User',['John Doe'],true,'PUT');
        */
-      var patt = /^.*[^\/]\/+[^\/].*$/;
+
+      patt = /^.*[^\/]\/+[^\/].*$/;
       if ( patt.test(a) ) 
       {	// it's an url ; 
-	patt = /^(http.?:\/\/[^\/]+|..)\/(jkuery|rule|report)\/([^\/]+)(?:\/|((?:\/[^\/?]+)+))(?:[?](.*))?$/;
-	var url = a.match(patt);
+	patt = /^((http.?:)?\/\/[^\/]+|..)\/(jkuery|rule|runrule|report)\/([^\/]+)(?:\/|((?:\/[^\/?]+)+))(?:[?](.*))?$/;
+	url = a.match(patt);
 	source = url[2]; // e.g. "rule" ; 
 	name = url[3];
 	parms = url[4].split('/').slice(1); // parms array ; 
 	qtype = url[5].match(/query_type=[^=]+/); // query string ; 
-	doRun = parms || true; 
+	//doRun = parms || true;  // meaning? ;
+        // method can be either the 2nd or 3rd argument ;
+        emethod(b);
+        emethod(e);
+        //doRun will be the 2nd or 3rd argument ;
+        if(method == b){
+          doRun = !!e;
+        } else {
+          doRun = !!b;
+        }
+        // no 4th nor 5th argument used in this case ; 
       } else {
-	name = a;
-	parms = b;
-	doRun = e || false;
-	if(f !== undefined){
-	  // when f is defined then f is the flag ; 
-	  qtype = f;
-	  doRun = f;
-	}
-      }
+        name = a;
+        switch(arguments.length){
+          case 0:
+          // throw exception;
+          throw new Error('not enough arguments');
+          break;
+          case 1: // only have the ID/name ; 
+          parms = [];
+          method = 'GET';
+          break;
+          case 2:
+          // 2nd arg is run flag or parms or method ;
+	  if(typeof b === "boolean"){ // runflag;
+            // only consider 2 args;
+            doRun = b;
+            method = 'GET';
+            parms = [];
+          } else if(typeof b === "string"){ // method;
+            emethod(b);
+            //doRun will set itself a default
+            parms = [];
+          }
+          break;
+          case 3:
+          for(i = 1; i < 3; i++){
+            switch(typeof arguments[i]){
+              case 'string': // method;
+              emethod(arguments[i]);
+              break;
+              case 'boolean': // runflag;
+              doRun = arguments[i];
+              break;
+              case 'object': // parms
+              parms = arguments[i];
+              break;
+              default:
+              //throw exception ;
+              throw new Error('wrong datatype in arguments');
+              break;
+            } // end switch args;
+            method = method || 'GET';
+            parms = parms || [];
+          } // end for ;
+          break;
+          case 4:
+          for(i = 1; i < 4; i++){
+            switch(typeof arguments[i]){
+              case 'string': // method;
+              emethod(arguments[i]);
+              break;
+              case 'boolean': // runflag;
+              doRun = arguments[i];
+              break;
+              case 'object': // parms
+              parms = arguments[i];
+              break;
+              default:
+              //throw exception ;
+              break;
+            } // end switch args;
+            method = method || 'GET';
+            parms = parms || [];
+          } // end for ;
+        } // end switch ;
+      } // end if patt ; 
       if(!jKuery.LastJSON){ // only create this when needed ; 
 	jKuery.LastJSON = {};
       }
-      var hash = fn.hash(name, parms, source, qtype);
+      hash = fn.hash(name, parms, source, qtype, method);
 
       if(jKuery.LastJSON[hash]){
 	return jKuery.LastJSON[hash];
       }
 
       jKuery.LastJSON[hash] = {};
-      jKuery.LastJSON[hash] = new jKuery.JSON(name, parms, source, qtype,doRun);
+      jKuery.LastJSON[hash] = new jKuery.JSON(name, parms, source, qtype, doRun, method);
 	return jKuery.LastJSON[hash];
     };
   };
@@ -491,7 +617,7 @@
 
   jKuery.getJKVersion = function()
   {
-    var VersionTest = jKuery.newJkuery('jKuery Version','',false); // even failed requests return the version;
+    var VersionTest = jKuery.newJkuery('jKuery Version',[''],false); // even failed requests return the version;
     VersionTest.setTimeout(1000);
     return VersionTest;
     //TODO ; 
@@ -503,74 +629,107 @@
      */
   };
 
-    jKuery.getKVersion = function()
-    {
-	var VersionTest = jKuery.newJkuery('K1000 Version','',false);
-	VersionTest.setTimeout(1000);
-	return VersionTest;
-    }; // end getKVersion ;
+  fn.runRuleForP = function(n,p)
+  {
+    return jKuery.newJkuery(n,p,true);
+  }; // end fn.runRuleForP
 
-    jKuery.getLastTicketChangeId = function()
-    {
-	//TODO : add version diffs e.g. 6.0 ; 
-	var val = undefined;
-	$('#ticket_history_tbody')
-	    .find('input[name^="fields\\[existing_change_owners_only\\]"')
-	    .eq(0)
-	    .each( 
-		function(){
-		    var n = $(this).attr('name');
-		    val = n.substring('fields[existing_change_owners_only]['.length,n.length-1);
-		}
-	    );
-	return val;
-    }; // end getLastTicketChange ; 
+  jKuery.runRuleForChange = function(jkueryRowName)
+  {
+    var parms = [
+      jKuery.getTicketId(),
+      jKuery.getLastTicketChangeId()
+    ];
+    return fn.runRuleForP(jkueryRowName,parms);
+  }; // end jKuery.runRuleThisTicket ;
 
-    jKuery.getQueueId = function()
-    {
-	if($('#ticket_form').find('input[name="fields\\[queue_id\\]"]').length > 0 {
-	    return $('#ticket_form').find('input[name="fields\\[queue_id\\]"]').val();
-	} else {
-	    return undefined;
+  jKuery.runRuleForTicket = function(jkueryRowName)
+  {
+    return fn.runRuleForP(jkueryRowName,[jKuery.getTicketId]);
+  }; // end jKuery.runRuleThisTicket ;
+
+  jKuery.runRuleForId = function(jkueryRowName,id)
+  {
+    return fn.runRuleForP(jkueryRowName,[id]);
+  }; // end jKuery.runRuleThisId ; 
+  
+  jKuery.getKVersion = function()
+  {
+    //	var VersionTest = jKuery.newJkuery('K1000 Version',[''],false);
+    var VersionTest = jKuery.newJkuery('K1000 Version');
+    VersionTest.setTimeout(1000);
+    return VersionTest;
+  }; // end jKuery.getKVersion ;
+
+  jKuery.getLastTicketChangeId = function()
+  {
+    //TODO : add version diffs e.g. 6.0 ; 
+    var v;
+    $('#ticket_history_tbody')
+      .find('input[name^="fields\\[existing_change_owners_only\\]"')
+      .eq(0)
+      .each( 
+	function(){
+	  var n = $(this).attr('name');
+	  v = n.substring('fields[existing_change_owners_only]['.length,n.length-1);
 	}
-    } // end getQueueId ;
+      );
+    if( parseInt(v) > 0 ){
+      return parseInt(v);
+    }
+    return undefined;
+  }; // end jKuery.getLastTicketChange ; 
 
-    jKuery.getTicketId = function()
-    {
-	//TODO: add version differences; 
-	// this technique returns the actual ID.  e.g. 4 not 0004;
-	if( $('#ticket_form').find('input[name="attr\\[ID\\]"]').length > 0 ) {
-	    return $('#ticket_form').find('input[name="attr\\[ID\\]"]').val();
-	} else {
-	    return undefined;
-	}
-    }; // end getTicketId ; 
+  jKuery.getQueueId = function()
+  {
+    var $qid = $('#ticket_form').find('input[name="fields\\[queue_id\\]"]');
+    if( $qid.length > 0) {
+      if( parseInt( $qid.val() ) > 0 ){
+	return parseInt($qid.val());
+      }
+    }
+    return undefined;
+  }; // end jKuery.getQueueId ;
 
-    jKuery.getLocalizedPageName = function()
-    {
-	if($('#pageName > h2').length > 0){
-	    return $('#pageName > h2').text();
-	} else {
-	    return undefined;
-	}
-    } // end getLocalizedPageName ;
+  jKuery.getTicketId = function()
+  {
+    var tick;
+    //TODO: add version differences; 
+    // this technique returns the actual ID.  e.g. 4 not 0004;
+    if( $('#ticket_form').find('input[name="attr\\[ID\\]"]').length > 0 ) {
+      tick = $('#ticket_form').find('input[name="attr\\[ID\\]"]').val();
+      if( parseInt(tick) > 0 ){
+        return parseInt(tick);
+      }
+    }
+    $.error('Current Page is not a ticket');
+  }; // end getTicketId ; 
 
-    jKuery.runRuleForID = function(n)
-    {
-	var t = undefined, //ticket number  //TODO arg[1];
+  jKuery.getLocalizedPageName = function()
+  {
+    if($('#pageName > h2').length > 0){
+      return $('#pageName > h2').text();
+    } else {
+      return undefined;
+    }
+  }; // end getLocalizedPageName ;
+
+  jKuery.runRuleForID = function(n)
+  {
+    var t = undefined, //ticket number  //TODO arg[1];
 	q = jKuery.getQueueId(), // queue number
 	c = undefined; //change nuber to use //TODO arg[2];
-	/*
-	 * n is the rule to run
-	 * if n is an array then run all those rules
-	 * if n is string then that is the name of the rule to run
-	 * if n is integer then that is the ID of the rule to run
-	 * if arg[1] is missing then lookup the current ticket number
-	 * if arg[2] is missing then use latest change number
-	 * if 
-	 */ 
-	// TODO: ; 
-    } // end runRuleForID ;
+    /*
+     * n is the rule to run
+     * if n is an array then run all those rules
+     * if n is string then that is the name of the rule to run
+     * if n is integer then that is the ID of the rule to run
+     * if arg[1] is missing then lookup the current ticket number
+     * if arg[2] is missing then use latest change number
+     * if 
+     */ 
+    // TODO: ; 
+  }; // end runRuleForID ;
 
   $.extend(
     true, 
@@ -593,7 +752,8 @@
       newRule : fn.getJSONSkeleton(1),
       newReport : fn.getJSONSkeleton(2),
       newJkueryRule : fn.getJSONSkeleton(3),
-      newJkueryReport : fn.getJSONSkeleton(4)
+      newJkueryReport : fn.getJSONSkeleton(4),
+      newRunRule : fn.getJSONSkeleton(6)
     } // end jKuery
   ); // end extend
 

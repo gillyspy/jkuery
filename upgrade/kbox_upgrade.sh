@@ -189,21 +189,21 @@ function dbGrants(){
 
 function checkDBfilesExists($table="JKUERY")
 {
+  
+  $filename1 = "/kbox/mysql/var/$table";
+  $ret = true;  
+  if($debugit===true){
+    logu("Filename1 is $filename1",true);
+  }
 
-	$filename1 = "/kbox/mysql/var/$table";
-  $ret	= true;  
-	if($debugit===true){
-		logu("Filename1 is $filename1",true);
-	}
+  if (!file_exists($filename1)) {
+    logu("Database objects $filename1 do not exist yet",true);
+    $ret = false;
+  } else {
 
-	if (!file_exists($filename1)) {
-    		logu("Database objects $filename1 do not exist yet",true);
-		$ret = false;
-	} else {
-
-    		logu("Database objects $filename1 do exist",true);
-	}
-	return $ret;
+    logu("Database objects $filename1 do exist",true);
+  }
+  return $ret;
 }
 
 function checkTokensTableExists()
@@ -267,6 +267,7 @@ function getJkueryVersion(){
   } else {
     $ver = "0";
   }
+  logu('jKuery version detected: '.$ver);
   return $ver;
 } // end getJkueryVersion
 
@@ -284,13 +285,17 @@ function escapeRgx($str){
 
 function getOriginsRgx(){
   $chk = (int)versionCompare( getJkueryVersion(), "2.0", true);
+  logu($chk);
   $rgx = false;
   if($chk >= 0){
     $sql = "select concat( '^(',group_concat(ORIGIN separator '|'), ')$' ) RGX from JKUERY.TOKENS UNION ALL select '^$' RGX";
     try{
       $db = _u_dbConnect('KBSYS');
-      $rgx = escapeRgx($db->GetOne($sql) );
+      $rgx = $db->GetOne($sql) ;
+      $rgx = preg_replace('/\//','\\/',preg_quote($rgx));
+      //escapeRgx($rgx);
     } catch(Exception $e){
+      logu("Error: ".$e->getMessage);
       return false;
     }
   } 
@@ -304,10 +309,13 @@ function createHttpSed(){
    */
   //get regex from TOKENS
    $rgx = getOriginsRgx();
-   if(!$rgx){
-     //do nothing
+   if(!(bool)$rgx){
+     logu("Allowing no origins");
+     return NULL;
    } else {
-     $conf = <<<EOT
+     logu("Adding Origin $rgx to apache config for jkuery service from database");
+   }
+   $conf = <<<EOT
 /<Directory \\/>/{
 N
 N
@@ -339,13 +347,11 @@ s/\\(<Directory \\/>.*\\)\\(RewriteEngine on\\)/SetEnvIf Origin "$rgx" ORIGIN_SU
 /g
 }
 EOT;
-   
-      exec("echo '".$conf."' > ./httpd.2.sed.conf");
-   }
-} // end createHttpSed
+
+   exec("echo '".$conf."' > ./httpd.2.sed.conf");
+} // end createHttpSed ; 
 
 //  #####################################################
-
 
 $debugit = true; 
 
@@ -357,7 +363,7 @@ logu("Begin installing jKuery extension", true);
 //$curVersion = getCurrentVersion();
 
 if($debugit===true) {
-	logu("Current version is: $Kversion", true );
+  logu("Current version is: $Kversion", true );
 }
 
 foreach($tryVersion as $serverVersion){
@@ -369,45 +375,39 @@ foreach($tryVersion as $serverVersion){
     // Step 1b: set version
     setJkueryVersion($version);
 
-    // Step 2: Unpack and run script
-    logu("Unpacking Files, Initializing Headers, Sourcing your code, configuring Samba",true);
-    // create support files if necessary
-    createHttpSed();
-    exec("/kbackup/upgrade/jkuery_install.sh >>".KB_LOG_DIR."update_log");
-
     // Step 3: Create Db object
     logu("Creating Database Objects",true);
-    if( createJSD('jkuery.sql') )
-      {
-	logu("Database object already exists. Exiting object creation.",true );
-      } else {	
+    if( createJSD('jkuery.sql') ){
+      logu("Database JKUERY.* objects exists. Exiting object creation.",true );
+      // Step 2: Unpack and run script
+      logu("Unpacking Files, Initializing Headers, Sourcing your code, configuring Samba",true);
+      // create support files if necessary
+      createHttpSed();
+      exec("/kbackup/upgrade/jkuery_install.sh >>".KB_LOG_DIR."update_log");
+
+      //	Step 4) Give permissions
+      logu("Assigning permissions to JKUERY tables",true);
+      if(dbGrants()){
+	logu("Permissions assigned for JKUERY.*",true);
+	$complete = true;
+      } else {
+	logu("Failed to assign permissions",true);
+	logu("jKuery partially installed",true);
+	$complete = false; 
+      }
+    } else {	
       logu("Database not created Successfully");
       logu("Creation of database objects failed. jKuery partially installed",true);
+      $complete = false;
     }
-
-    //	Step 4) Give permissions
-    logu("Assigning permissions to JKUERY tables",true);
-    if(dbGrants()){
-      logu("Permissions assigned for JKUERY.*",true);
-    } else {
-      logu("Failed to assign permissions",true);
-      logu("jKuery partially installed",true);
-      exitCleanup(false);
-    }
-
-
-    logu("jKuery install completed with no errors.  Please view readme for next steps",true);
-
-
 
     // Step 5) Cleanup
-    exitCleanup(true);
+    if($complete) {
+      logu("jKuery install completed with no errors.  Please view readme for next steps",true);
+      exitCleanup(true);
+    } else {
+      exitCleanup(false);
+    }
   }
 }
-
-if($verMatch == false) {
-    logu("K1000 jKuery $version FAILED - requires a minimum build level of ($tryVersion[0]), you are currently at ($Kversion).", true);
-    exitCleanup(false);
-}
-
 ?>

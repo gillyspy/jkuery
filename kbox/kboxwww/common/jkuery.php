@@ -9,15 +9,17 @@
  * is  the row in JKUERY.JSON that you want to work with
  * query_type and org_id is now sourced from the prepared statement definition
  * query_type dictates how the request is going to create JSON
- ** "json" means you want to get the cached json data
+ ** "json" means you want to get the cached (static) json data from the table
  ** "sqlp" mean you want to use the prepared statement
- **  "sql" mean you want to execute a canned statement with variables
- **  "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
+ ** "sql" mean you want to execute a canned statement with variables
+ ** "rule" means  you want to re-write the select query from an existing ticket rule as a prepared statement
  ** "runrule" means you want to do "rule" type but also run all the actions associated with that rule in the system (email, updates, etc)
- **  "report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
+ ** "runallrules" means you want to run the SQLstr query but then all rules that are batch-type, scehduled rules (not on ticket save rules)
+ ** "report" means you wan to run the statement stored in a report.  Note: this might be a prepared statement! 
  **  while that would fail in reporting it is still allowed to be created
  ** "jautoformat" is the type of JSON output they want. manual (0 : you build the string) or auto (1 : derived from an assoc array)
- ** "debug" 1 means that you will get extra debug info returned. 0 is off (default)
+ ** "debug" 1 means that you will get extra debug info returned. 0 is off (default).  this will
+    also log extra data in the kbox log files
  * P* are the variables for a prepared statement. these are deprecated
  * p is an array of variables parsed from the REST-style URL
  */
@@ -47,6 +49,7 @@ function setParms($PARAMS, $OBJ){
       //        KBLog($OBJ[$param]);
 
       // generate param list for prepared statement ; 
+      // TODO: properly loop through a parms array. but this is also needed for legacy formatted requests;
       if("p" == substr($param, 0, 1) && (int)substr($param,1)>0){ 
 	array_push( $_nop,esc_sql($OBJ[$param]));
 	// do not sql_escape prepared variables ;
@@ -99,7 +102,6 @@ if ( $_query['debug'] == "true" || $_query['debug'] == "1" || $_query['debug'] =
 if(isset($_GET['p']) && (string)$_GET['p'] !=''){
   $_p = explode( "/", $_GET['p']);
 }
-
 /*
  * because of URL re-write using GET parms take the parms given in the rewrite and re-use them
  * Again, this could overwrite parms used in the PUT/POST/DELETE but that's fine
@@ -119,7 +121,7 @@ KBLog('$_GET: '.print_r($_GET,true));
  * if it is a string then it will lookup the ID from the JKUERY.JSON table
  */
 
-//$id = (int)$id; // obsolete
+//$id = (int)$id; // obsolete ; 
 $jautoformat = isset($jautoformat) ? (int)$jautoformat : 1; // default is 1:auto ;
 
 if(!$valid_session){  // try a token auth first.  this will allow requests from another ORG that have a session to switch theirs;
@@ -175,20 +177,6 @@ if($valid_session){
   $obj->fail(401,"Unauthorized");
   //  include("401.php");
 }
-
-/*
- *
- * TODO: I want to be able to run all/some rules for a ticket ID (for any ID). 
- * the ID would be substituted into the <TICKET_JOIN> phrase written in the Select Query
- * or if missing then "and 
- * to make this possible the query would need to be written such that the table you want to work with is aliased to "HD_TICKET" that way I could sub in "HD_TICKET.ID = X" for it.  
- * the request will come as k1000/runrules/name/parm and that would imply
- * that a rule called "name" would get run for value HD_TICKET.ID=parm
- * a special value for "name" "?all?" would mean all rules would get run for that ID
- * a special value for "name" "?save?" would mean all OTS rules would get run for that ID
- * use case:  it is easy to obtain the ID values for many things in the UI.  Here you want to carry out an action on a specific object in the UI
- */
-
 exit();
 
 ?>

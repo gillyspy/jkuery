@@ -27,6 +27,7 @@ Applying the patch
 ======================
 If you are reading this on \\k1000\jkuery\www\hidden then you have already attempted to install this patch.  
 However, you may need to re-install this patch so please read this entire section
+
 1. Backup your database and take a copy offline
 2. Your samba server will be restarted so make sure that no provisionings are taking place as they use that share
 3. enable the samba share and set the password in your organization's settings. 
@@ -40,6 +41,7 @@ How to use the patch once applied
 ==================================
 There is no userinterface for this patch. You must know the secret sauce given here.  There is no
 permanent evidence in the web interface that it is enabled apart from the update log
+
 1. Browse to \\k1000\jkuery directory and login with your ORG1 samba share credentials. If you do
 not know these are set in the General settings of each orgs (Settings->General)
 2. You should see at least 4 directories:  \2.x, \customer, \markers, \hidden
@@ -61,6 +63,7 @@ and follow the instructions provided in the matching readmes.  If you delete exa
 OEM files you can restore them by re-applying the patch
 8. If the order of your scripts loading matters then make sure you list them in that order where appropriate
 9. Most customers will:
+
 * put all their images in one spot -- you pick
 * put all their css in one spot
 * have separate js either in specific portals (allowing for more complexity if they want it)
@@ -71,9 +74,13 @@ OEM files you can restore them by re-applying the patch
 Database Access:
 ================
 Database access to the JKUERY dbspace is provided with 
+
 username: jkuery
+
 password: <same as the "admin" user's ORG1 password at the time you last applied the kbin>
+
 port:3306
+
 dbspace: JKUERY
 
 Data Access component (Data API):
@@ -92,9 +99,14 @@ Stored Queries can be in the form of prepared statements.  If you are using para
 statements you can provide dynamic data in your web request. 
 
 Let's say you wanted to get USER data for USER_NAME=Gerald. Your URL would be something like:
+
 http://k1000/jkuery/myuserquery/gerald
+
 (this is a USER report via a service we called "myuserreport" and provided the parameter 'gerald')
+
 The JSON that might come back might look like this:
+
+```
 {   
     "message":"",
     "version":"2.0",
@@ -116,6 +128,7 @@ The JSON that might come back might look like this:
 	}				
     }				
 }
+```
 
 some other example URLs to access this service are: 
 
@@ -127,11 +140,15 @@ or (preferred)
  http://k1000/jkuery/my+user+query+test/Gerald/kace.com
 
  in the db this is stored as (some columns hidden):
+
+```
 +-----+-------------------------------------------------------------------+--------------------+------------+
 | ID  | SQLStr                                                            | NAME               | QUERY_TYPE |
 +-----+-------------------------------------------------------------------+--------------------+------------+
 | 105 | select * from USER where USER.NAME=? and EMAIL like concat('%',?) | my user query test | sqlp       |
 +-----+-------------------------------------------------------------------+--------------------+------------+
+```
+
 --------------------------------------------------------------------------------------------------------
 
 * using select query from rule #43 in current org.  passing  ticket_change#2 as parameter for <CHANGE_ID>  
@@ -143,24 +160,33 @@ or
  http://k1000/jkuery/101/2
  
 in the JKUERY.JSON table this is stored as (some columns hidden):
+
+```
 +-----+-------------------+--------+------------------------+------------+
 | ID  | HD_TICKET_RULE_ID | SQLStr | NAME                   | QUERY_TYPE |
 +-----+-------------------+--------+------------------------+------------+
 | 101 |                43 |   NULL | my service for rule 43 | rule       |
 +-----+-------------------+--------+------------------------+------------+
+```
+
 --------------------------------------------------------------------------------------------------------
+
 * using select query from REPORT ID 25 (does not work with tiered reports, only works with one-level OR
 custom SQL reports) I reference the item in the JKUERY table which will point me to the correct Report.
 Note that HD_TICKET_RULE_ID is a legacy name for this column, but it is a report ID.
  http://k1000/report/102
+
+```
 +-----+-------------------+--------+-------------+------------+
 | ID  | HD_TICKET_RULE_ID | SQLStr | NAME        | QUERY_TYPE |
 +-----+-------------------+--------+-------------+------------+
 | 102 |                25 |   NULL | some report | report     |
 +-----+-------------------+--------+-------------+------------+
+```
 
 Secure Access to the data API:
 ==============================
+
 Authentication is session based.  When you login you do not need to login again for JKuery requests to work. 
 But you must define permissions to the services you created.  You can do this by user label or by role. 
 This relationship is defined in JKUERY.JSON_LABEL_JT and / or JKUERY.JSON_ROLE_JT
@@ -168,6 +194,8 @@ This relationship is defined in JKUERY.JSON_LABEL_JT and / or JKUERY.JSON_ROLE_J
 the service is applicable to the ORGs listed in these same tables
 
 E.g. these entries in the JSON_LABEL_JT table:
+
+```
 +---------+--------+----------+
 | JSON_ID | ORG_ID | LABEL_ID |
 +---------+--------+----------+
@@ -175,7 +203,10 @@ E.g. these entries in the JSON_LABEL_JT table:
 |     101 |      1 |        1 |
 |     102 |      1 |        1 |
 +---------+--------+----------+
+```
+
 are interpreted as:
+
 * JKUERY.JSON service at ID=101 is accessible to all USERs in ORG1 that are in Labels 1 and 2
 * JKUERY.JSON service at ID=102 is accessible to all USERs in ORG1 that are in Labels 1 only
 
@@ -184,24 +215,32 @@ Any intersection of permissions for ROLE / LABEL is inclusive.
 
 If you want a wildcard for testing simply use 0 for that item.  The following entry will give all USERS (USER_ID=0)
 access to all JKUERY.JSON entries (JSON_ID=0) for all ORGs (ORG_ID = 0)
+
+```
 +---------+--------+----------+
 | JSON_ID | ORG_ID | LABEL_ID |
 +---------+--------+----------+
 |       0 |      0 |        0 |
 +---------+--------+----------+
+```
 
 Even though it is session based, you can access the data API remotely by using a token authentication scheme.  Origins of remote locations
 and takens and mapped user id must be listed as a pair in the JKUERY.TOKENS table.  Origins can be a regex.
 
 Tokens are stored in JKUERY.TOKENS. JSON_TOKENS_JT.  A token is a key that must be paired with the valid ORIGIN
 definition provided.  By Origin I'm referring to the Origin of the http request.  
+
 Here is an example token definition:
+
+```
 +----+------------------------------------------+---------------------------+
 | ID | TOKEN                                    | ORIGIN                    |
 +----+------------------------------------------+---------------------------+
 |  1 | nothing                                  | https?://nowhere.comfooey |
 |  2 | c22b5f9178342609428d6f51b2c5af4c0bde6a42 | https?://.*[.]kace[.]com  |
 +----+------------------------------------------+---------------------------+
+```
+
 #1 is meaningless really because there is no comfooey domain but for #2 other resources in the kace.com domain can access this
 via http or https if they provide the token 'c22b5f9178342609428d6f51b2c5af4c0bde6a42'.  
 
@@ -211,11 +250,13 @@ above would need to be setup for that user.  You might want to create a dummy, p
 
 Remember, when you are defining a token you are giving external sites (Origins) access to the JKuery data on this K1. 
 
+```
 +---------+--------+-----------+---------+
 | JSON_ID | ORG_ID | TOKENS_ID | USER_ID |
 +---------+--------+-----------+---------+
 |     101 |      1 |         2 |      10 |
 +---------+--------+-----------+---------+
+```
 
 Based on the TOKENS then any web request from kace.com origins will have access to JSON_ID and act as USER_ID
 
@@ -224,7 +265,7 @@ request working locally first (TIP: login to the web ui to establish a session a
 and then, if needed, get it working remotely later
 
 A token request looks like this:
-http://k1000/jkuery/102/?token=c22b5f9178342609428d6f51b2c5af4c0bde6a42
+`http://k1000/jkuery/102/?token=c22b5f9178342609428d6f51b2c5af4c0bde6a42`
 
 More Debugging tips:
 ====================
@@ -237,23 +278,31 @@ and more feedback shown in the K1000 server log
 * make sure you re-run your request you are hitting the server if desired and not using a cached request
 By default the jKuery javascript object will cache requests using a hash.  
 e.g.
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);`
 
 this will run right away and then you can access the data via:
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
 
 Note this was equivalent to a request to: 
-http://k1000/jkuery/my+user+query+test/Gerald/kace.com
+`http://k1000/jkuery/my+user+query+test/Gerald/kace.com`
 
 But anyway, if you do this now you are neither re-running the request NOR getting new data -- you are getting cached data:
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);
+    
 or this:
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
 
 However, if you do either of these then you WILL re-run the request:
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).setData(optionalcallback) // returns this
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).setData(optionalcallback) // returns this
+    
 or
-jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).runAjax(optionalcallback) // returns Promise
+
+    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).runAjax(optionalcallback) // returns Promise
 
 The "true" flag above means run the request immediately.  Set to false if you want to set debug or a callback first, etc
 
@@ -266,23 +315,23 @@ This is not required but exists for your convenience.
 
 If you plan to use javascript to access the data API then you should use the jKuery object that is
 included in jquery.jKuery.min.js file.  Some sample calls are:
- * var K = new jKuery.JSON( request, [parms [, method , [,  runnowflag ]]])
- ** requestname type: string or integer.  Name or ID of JKUERY.JSON row
- ** parms       type: Array of strings. e.g. ['Gerald','1']
- ** runnowflag  type : boolean
- ** method      type : string (GET, POST, PUT, etc)
- *
- * var K = new jKuery.JSON( url [, boolean])
- ** url   type : string of full request URL
- *
- * jKuery.newJkuery( requestname, parms )
- * jKuery.newRule( ruleID , parms)
- * jKuery.newReport( reportID, parms) 
- *
- * there is no support for direct name references for rules and reports because this would break control over which ones run since a user with 
- *  access to rules/reports might not have JKUERY.JSON access, but they probably have access o the rule / repor definition
- * and might change a rule/report name just to run that one instead. Rule and reports names are also not unique.
- * so "name" is always a reference to the JKUERY row.  But the query that gets run for them comes FROM the rule's or report's definition
+
+* var K = new jKuery.JSON( request, [parms [, method , [,  runnowflag ]]])
+    * requestname type: string or integer.  Name or ID of JKUERY.JSON row
+    *  parms       type: Array of strings. e.g. ['Gerald','1']
+    * runnowflag  type : boolean
+    * method      type : string (GET, POST, PUT, etc)
+* var K = new jKuery.JSON( url [, boolean])
+    * url   type : string of full request URL
+
+* jKuery.newJkuery( requestname, parms )
+* jKuery.newRule( ruleID , parms)
+* jKuery.newReport( reportID, parms) 
+
+There is no support for direct name references for rules and reports because this would break control over which ones run since a user with
+access to rules/reports might not have JKUERY.JSON access, but they probably have access o the rule / repor definition
+and might change a rule/report name just to run that one instead. Rule and reports names are also not unique.
+so "name" is always a reference to the JKUERY row.  But the query that gets run for them comes FROM the rule's or report's definition
 
 if you call "new jKuery.JSON(blah) with the same request/ parms combination as a previous request on this page
 then you will be given a reference to the cached instance not a new instance.  All cached instances are stored
@@ -294,9 +343,12 @@ How to disable jkuery:
 Option#1: Move all *.css and *.js files to the "hidden" directory.  you could even copy your entire
 tree (except for "other") into "hidden". Clear your browser cache.  This will cause some 404s but users's
 won't see them
+
 Option#2: make the contents of markers directory look like this (and nothing extra) (see 
 "Activating Script" section for details) and reload the page. Meaning delete the ones that don't end
-in ".rename"
+in ".rename":
+
+```
 \markers\
 			KGlobalPageHeader.rename
 			KAdminPageHeader.rename
@@ -306,11 +358,15 @@ in ".rename"
 			KUserPageHeader.rename
 			KWelcomePageHeader.rename
 			KWelcomePageHeaderSys.rename
+```			
+
 Option#3: Preferred
 Modify the contents of the corresponding file (e.g. KGlobalPageHeader) so that it does not reference
 undesirable, or all, scripts, etc
 
 Sample contents of KGlobalPageHeader (that you would have to create or modify for other purposes):
+
+```
 +------------------------------------------------------------------------------------------+
 |<script type="text/javascript" src="/jkuery/www/2.2/jquery.min.js"></script>              |
 |<script type="text/javascript" src="/jkuery/www/2.2/jquery.jKuery.2.2.min.js"></script>   |
@@ -318,11 +374,14 @@ Sample contents of KGlobalPageHeader (that you would have to create or modify fo
 |<script type="text/javascript" src="/jkuery/www/2.2/default.js"></script>                 |
 |<link rel="stylesheet" href="/jkuery/www/adminui/2.2/default.css" />                      |
 +------------------------------------------------------------------------------------------+
+```
 
 Activating Scripts (by Example)
 ===============================
 This is what \markers looks like when you want to disable
 jkuery:
+
+```
 markers\
 			KGlobalPageHeader.rename
 			KAdminPageHeader.rename
@@ -332,12 +391,16 @@ markers\
 			KUserPageHeader.rename
 			KWelcomePageHeader.rename
 			KWelcomePageHeaderSys.rename
+```
+
 in order to activate scripts that you provide you will need to make a copy of the file without the ".rename" 
 extension for that web portal. e.g. for the Admin portal you would create "KAdminPageHeader" and list
 the files you want to load inside of that file.
+
 Having scripts in the \adminui dir is irrelevant. This is just there for legacy reasons but could help with
 your own bookkeeping of the files.
 scripts will be linked (active).  Here is a mapping to which files work on which dir:
+
 KGlobalPageHeader      : apply to all web portals and login screens
 KPrintablePageHeader   : \not specific to any portal
 KPageHeader	       : \not relevant 
@@ -401,16 +464,17 @@ Special Note about kbox upgrades
 While your javascrpt may need to change, that is irrelevant here. Obviously the product is not 
 going to cater to potential customizations you have made without disclosure. This is about things 
 that are common to all customers
+
 0. You should test an upgrade on an offline VM first
 1. You must apply (or reapply) the matching jkuery patch after an kbox upgrade as an OEM upgrade will turn them all off. 
 Assuming the new kbox version is supported with the jkuery kbin,
 this will re-link your scripts against the updated kbox files
 2. your scripts may not work the same on the newer kbox version because:
-* the DOM has changed (even slightly can affect your scripts) 
-* or you were using names for your variables or functions in the global namespace and the kbox
+    * the DOM has changed (even slightly can affect your scripts)
+    * or you were using names for your variables or functions in the global namespace and the kbox
 OEM javascript is now using that name.  TIP: use unique name and encapsulate as much of your work
 as you can. i.e. There is no reason this can't be easily avoided.
-* if you have made manual changes to config files (e.g. apache, samba) that include jkuery info 
+    * if you have made manual changes to config files (e.g. apache, samba) that include jkuery info 
 then that means when you reapply jkuery they will be undone because the backup that jkuery made 
 last time  will not have your customizations.  However, if you changed config files by 
 replacing them (e.g. a kbox upgrade or kbox patch) then those will be not have any jkuery 
@@ -427,12 +491,12 @@ the *file.tgz archive and the data (which you might not be using) portion will b
 EXCEPTION: due to a bug in 5.5 the database is not backed up. Please contact support to make sure
 this is backed up
 
-However,there is nothing stopping you from grabbing the files yourself from the \\k1000\jkuery share
+However,there is nothing stopping you from grabbing the files yourself from the `\\k1000\jkuery` share
 and making queries to the database to grab that data.
 
 What can I do with scripts
 ==========================
-This is out of scope for this doc:See the \\k1000\jkuery\other\_examples directory, faqs, etc.  
+This is out of scope for this doc:See the `\\k1000\jkuery\other\_examples` directory, faqs, etc.  
 
 Revision History
 ================
@@ -489,7 +553,7 @@ Revision History
 2.2
 ===
 * support CRUD operations in RESTful way (HEAD,GET,POST,PUT,DELETE,OPTIONS methods)
-** (legacy -- can still do INSERTs, etc via GET/POST if using sqlpi query type)
+    * (legacy -- can still do INSERTs, etc via GET/POST if using sqlpi query type)
 * support for invoking full, on-ticket-save, ticket rules (update included) on a given ID
 * support invoking all rules (batch type rules)
 * more jKuery js object convenience functions for things like ticket #, change #, pagename, etc

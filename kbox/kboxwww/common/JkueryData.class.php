@@ -26,6 +26,17 @@ class JkueryData{
   public function __construct($id,$org_id,$method,$query_type,$debug=false){
     $this->debug = array('status' => $debug);
     $this->Log('constructing');
+    $this->org = (int)$org_id; //TODO get ORG from id for now; 
+    $this->method = $method;
+    $this->message = "";
+    $this->format = 1;
+    $this->purpose = "";
+    // TODO: have a status code instead ; 
+    $this->statusCode = NULL;
+    $this->status = NULL;
+    $this->json = ""; //TODO?? make this call a function to set it to an empty JSON object {} ;
+    $this->version = $this->getVersion(); 
+ 
     if(preg_match('/^[0-9]+$/', $id)){ // integer ;
       $this->Log('ID:'.$id);
       $this->id = (int)$id;
@@ -34,9 +45,11 @@ class JkueryData{
     } else {
       $this->id = $this->getIDforName($id);
     }
+    $this->query_type = $this->getQueryType($query_type);
 
+    
     //TODO : move this into the fail / succeed fns ;
-    $this->setHeader(200,'Success'); // default header
+    //    $this->setHeader(200,'Success'); // default header ;
 
     if(!$this->validID()){
       $this->Log("invalid ID");
@@ -44,17 +57,6 @@ class JkueryData{
       $this->fail(404); // not found; 
     }
 
-    $this->query_type = $this->getQueryType($query_type);
-    $this->version = $this->getVersion(); 
-    $this->org = (int)$org_id; //TODO get ORG from id for now; 
-    $this->message = "";
-    $this->format = 1;
-    $this->purpose = "";
-    // TODO: have a status code instead ; 
-    $this->statusCode = NULL;
-    $this->status = NULL;
-    $this->json = ""; //TODO?? make this call a function to set it to an empty JSON object {} ;
-    $this->method = $method;
     $this->setSqlType($method); // SELECT (GET/POST), INSERT/UPDATE (PUT/POST), DELETE (DELETE)
     $this->Rule = NULL;
     $this->Log("constructed");
@@ -86,7 +88,7 @@ class JkueryData{
 	from
 		JKUERY.JSON
 	where
-		ID = $this->id
+		ID = '$this->id'
 	union all
 	select 'error'
 EOT;
@@ -278,7 +280,7 @@ EOT;
 		1 
 	from
 		JKUERY.JSON_LABEL_JT JL
-		left join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = L.ID 	
+		left join ORG$this->org.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID
 			and UL.USER_ID = $userid
 
 	where 
@@ -319,7 +321,8 @@ EOT;
   private function succeed($sc=200, $msg=false, $exit=true){
     $this->Log("succeeding");
     $this->status  = isset($this->status) ? $this->status : "success";
-    $this->message =  !$this->message ? $msg : $this->message; 
+    $this->message =  !$this->message ? $msg : $this->message;
+    KBLog("jkuery success: ".$this->message);
     $this->setHeader($sc,'1.1',$this->message);
     $this->printJSON($exit);
   } // end succeed;
@@ -329,6 +332,7 @@ EOT;
     $this->format = 0;
     $this->message =  !$this->message ? $msg : $this->message; //You do not have a valid session. Please authenticate and try again ;
     $this->Log("jkuery failed with error: ".$this->message);
+    KBLog("jkuery failure: ".$this->message);
     $this->json = "{}";
     $this->setHeader($sc,'1.0', $this->message);
     $this->printJSON($exit);
@@ -806,15 +810,19 @@ EOT;
     header($this->header);
     header("Cache-Control: no-cache, must-revalidate");
     header("Expires: 0");
-    if($this->statusCode == 405 || $this->method == 'OPTIONS'){
+    if($this->statusCode == 405 || $this->method == 'OPTIONS' || $this->statusCode == 200 ){
       header($this->advertiseMethods());
     }
     $this->Log('method: '.$this->method);
     switch($this->method){
+    case 'HEAD':
+    case 'OPTIONS':
+      break;
     case 'GET':
     case 'POST':
     case 'PUT':
     case 'DELETE':
+    default:
       header("Content-type: text/javascript");
       print( $this->formatJSON() );
       break;
@@ -900,6 +908,9 @@ EOT;
 	  break;
 	case 'PLATFORM':
 	  $name = $_SESSION['KB_PLATFORM'];
+	  break;
+	case 'ORG_NAME':
+	  $name = $_SESSION['KB_ORG'];
 	  break;
 	default:
 	  // if we fall through then; 
@@ -1009,7 +1020,7 @@ EOT;
     $this->requireRule();
     $this->Log(print_r($p,true));
     $ruleid = $this->getRuleID();
-    if(isset($p[1])){ // p is ticket, change
+    if(isset($p[1])){ // p is ticket, change ;
 	$this->Rule->RunRule( $ruleid  , NULL, $p[0], $p[1]);
 	/* TODO : 
 	 * usage : RunRule($id, $rule = NULL, $onTicketID = NULL, $changeId = NULL)

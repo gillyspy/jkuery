@@ -225,7 +225,9 @@ access to all JKUERY.JSON entries (JSON_ID=0) for all ORGs (ORG_ID = 0)
 ```
 
 Even though it is session based, you can access the data API remotely by using a token authentication scheme.  Origins of remote locations
-and takens and mapped user id must be listed as a pair in the JKUERY.TOKENS table.  Origins can be a regex.
+and takens and mapped user id must be listed as a pair in the JKUERY.TOKENS table.  Origins can be a regex, but do not use the beginning (^) and ending ($) regex symbols since all ORIGINs are combined into a regex like this:   ^(ORIGIN1|ORIGIN2|etc)$
+
+NOTE: remember that ORIGINS include ports
 
 Tokens are stored in JKUERY.TOKENS. JSON_TOKENS_JT.  A token is a key that must be paired with the valid ORIGIN
 definition provided.  By Origin I'm referring to the Origin of the http request.  
@@ -254,18 +256,53 @@ Remember, when you are defining a token you are giving external sites (Origins) 
 +---------+--------+-----------+---------+
 | JSON_ID | ORG_ID | TOKENS_ID | USER_ID |
 +---------+--------+-----------+---------+
-|     101 |      1 |         2 |      10 |
+|       0 |      1 |         2 |      10 |
 +---------+--------+-----------+---------+
 ```
 
-Based on the TOKENS then any web request from kace.com origins will have access to JSON_ID and act as USER_ID
+Based on the TOKENS then any web request from kace.com origins will act as USER_ID in ORG1.  NOTE: JSON_ID is not used at this time
+so you can set it to 0.  
 
-There are no wildcards for tokens yet, but you can setup a flexible ORIGIN pretty easily.  You should get any
+There are no wildcards for tokens, but you can setup a flexible ORIGIN pretty easily.  You should get any
 request working locally first (TIP: login to the web ui to establish a session and use the browsers debugging console)
 and then, if needed, get it working remotely later
 
 A token request looks like this:
 `http://k1000/jkuery/102/?token=c22b5f9178342609428d6f51b2c5af4c0bde6a42`
+
+e.g. with jQuery:
+
+    jQuery.getJSON('http://dwsuf2013/jkuery/K1000%20Version/?token=hash')
+
+When using tokens all you have to do is provide a hash/origin combination that points to a valid user.  Even if that user does not have permission on any webui tabs, they may still be able to run Jkuery requests.  The ability to run jquery requests is determined by a query similar to this (note the variables you'll need to replace).  
+
+```
+        select
+		1 
+	from
+		JKUERY.JSON_LABEL_JT JL
+		left join ORG1.USER_LABEL_JT UL on UL.LABEL_ID = JL.LABEL_ID
+			and UL.USER_ID = $userid
+
+	where 
+	      JL.JSON_ID in ($this->id,0)
+	      and JL.ORG_ID in ($this->org,0)
+	      and (UL.USER_ID is not null or JL.LABEL_ID = 0)
+	union all
+	select 
+	       1 
+	from
+		JKUERY.JSON J 
+		join JKUERY.JSON_ROLE_JT JR on JR.JSON_ID in (J.ID,0)
+		left join ORG$this->org.USER U on
+			U.ROLE_ID = JR.ROLE_ID and U.ID = $userid
+	where 
+		J.ID = $this->id
+		and JR.ORG_ID in ($this->org,0)
+		and (U.ID is not null OR JR.ROLE_ID = 0)
+	union all select 0
+	limit 1
+```
 
 More Debugging tips:
 ====================
@@ -279,30 +316,30 @@ and more feedback shown in the K1000 server log
 By default the jKuery javascript object will cache requests using a hash.  
 e.g.
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);`
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true);`
 
 this will run right away and then you can access the data via:
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
 
 Note this was equivalent to a request to: 
 `http://k1000/jkuery/my+user+query+test/Gerald/kace.com`
 
 But anyway, if you do this now you are neither re-running the request NOR getting new data -- you are getting cached data:
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true);
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true);
     
 or this:
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
 
 However, if you do either of these then you WILL re-run the request:
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).setData(optionalcallback) // returns this
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).setData(optionalcallback) // returns this
     
 or
 
-    jKuery.newJkuery('my user query test',['Gerald','kace.com'],'DELETE',true).runAjax(optionalcallback) // returns Promise
+    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).runAjax(optionalcallback) // returns Promise
 
 The "true" flag above means run the request immediately.  Set to false if you want to set debug or a callback first, etc
 
@@ -314,29 +351,43 @@ Using the jKuery javascript object with the data API:
 This is not required but exists for your convenience. 
 
 If you plan to use javascript to access the data API then you should use the jKuery object that is
-included in jquery.jKuery.min.js file.  Some sample calls are:
+included in jquery.jKuery.X.X.min.js file.  Some sample calls are:
 
-* var K = new jKuery.JSON( request, [parms [, method , [,  runnowflag ]]])
+* var K = jKuery( request, [parms [, method , [,  runnowflag ]]])
     * requestname type: string or integer.  Name or ID of JKUERY.JSON row
     *  parms       type: Array of strings. e.g. ['Gerald','1']
     * runnowflag  type : boolean
     * method      type : string (GET, POST, PUT, etc)
-* var K = new jKuery.JSON( url [, boolean])
+* var K = jKuery( url [, runnowflag])
     * url   type : string of full request URL
+    * runnowflag  type : boolean
 
-* jKuery.newJkuery( requestname, parms )
-* jKuery.newRule( ruleID , parms)
-* jKuery.newReport( reportID, parms) 
+* jKuery( requestname, parms )
+* jKuery( ruleID , parms)
+* jKuery( reportID, parms) 
 
 There is no support for direct name references for rules and reports because this would break control over which ones run since a user with
 access to rules/reports might not have JKUERY.JSON access, but they probably have access o the rule / repor definition
 and might change a rule/report name just to run that one instead. Rule and reports names are also not unique.
 so "name" is always a reference to the JKUERY row.  But the query that gets run for them comes FROM the rule's or report's definition
 
-if you call "new jKuery.JSON(blah) with the same request/ parms combination as a previous request on this page
+if you call "jKuery(blah)" with the same request/ parms combination as a previous request on this page
 then you will be given a reference to the cached instance not a new instance.  All cached instances are stored
-in jKuery.LastJSON as a hash of their reqest/parms combo.   Cached instances have a way to re-run (runAjax method)
+in an internal object as a hash of their reqest/parms combo.   Cached instances have a way to re-run (runAjax method)
 and to update on an interval (setInterval)
+
+AJAX requests are asynchronous (obvious) so a great way to call them in development is:
+
+```
+    var myvar,
+    callback = function(){
+			myvar = this.getData();
+		};
+    jKuery('Session Value',[':user_id']).setDebug(true).setData(  callback  );
+```
+
+The reason this works is that the context for jKuery AJAX requests are always the instance of the jKuery object.
+When the request returns `myvar` will be set to the JSON data returned, even if an error is returned. 
 
 How to disable jkuery:
 ======================
@@ -372,6 +423,7 @@ Sample contents of KGlobalPageHeader (that you would have to create or modify fo
 |<script type="text/javascript" src="/jkuery/www/2.2/jquery.jKuery.2.2.min.js"></script>   |
 |<script type="text/javascript" src="/jkuery/www/2.2/jquery.aboutjKuery.min.js"></script>  |
 |<script type="text/javascript" src="/jkuery/www/2.2/default.js"></script>                 |
+|<script type="text/javascript" src="/jkuery/www/customer/my.js"></script>                 |
 |<link rel="stylesheet" href="/jkuery/www/adminui/2.2/default.css" />                      |
 +------------------------------------------------------------------------------------------+
 ```
@@ -412,7 +464,7 @@ KUserPageHeader	       : User portal pages
 
 Example of activating a script only on the main Admin interface but not on the admin welcome page (contents of file below):
 \markers\KAdminPageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KAdminPageHeader.rename (existence trumped by file above so this is irrelevant now)
 \markers\KWelcomePageHeader.rename (no other KWelcomePageHeader file so welcome is deactivated)
 \markers\KPageHeader.rename
@@ -423,15 +475,15 @@ Example of activating a script only on the main Admin interface but not on the a
 
 Example of a script that works on all pages that have a header EXCEPT the welcome pages
 \markers\KAdminPageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KSysPageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KPageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KUserPageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KPrintablePageHeader
-  contents:<script type="text/javascript" src="/jkuery/www/myscript.js"></script>
+  contents:<script type="text/javascript" src="/jkuery/www/customer/myscript.js"></script>
 \markers\KAdminPageHeader.rename
 \markers\KWelcomePageHeader.rename 
 \markers\KPageHeader.rename
@@ -444,7 +496,7 @@ Special Notes about re-applying the patch
 =========================================
 1. read all previous instructions
 2. file and database entries you created will (should) remain untouched.  
-OEM Files in the \\k1000\jkuery\2.x share will be overwritten
+OEM Files in the \\k1000\jkuery\x.x share will be overwritten
 3. This will recreate any other missing files e.g. marker files you deleted
 4. All existing and new files that you are specifying in custom markers files will be re-linked. 
 The database portion will only be updated / initialized if it does not exist or is not to spec
@@ -489,9 +541,9 @@ email automatically in your helpdesk creating a ticket when any errors arise don
 Well you should, but I digress.  Your jkuery data is backed up automatically. The files will be in 
 the *file.tgz archive and the data (which you might not be using) portion will be in the database. 
 EXCEPTION: due to a bug in 5.5 the database is not backed up. Please contact support to make sure
-this is backed up
+this is backed up or take steps to backup this up yourself.
 
-However,there is nothing stopping you from grabbing the files yourself from the `\\k1000\jkuery` share
+There is nothing stopping you from grabbing the files yourself from the `\\k1000\jkuery` share
 and making queries to the database to grab that data.
 
 What can I do with scripts
@@ -561,7 +613,6 @@ Revision History
 
 2.3
 ===
-* support wildcards for tokens
 * support for K1 6.0
 
 (future)
@@ -569,5 +620,3 @@ Revision History
 * support for K1000 6.1
 * support for K2000 ?.?
 * support for K3000 ?.?
-* invoke a ticket rule -- not just capture the query
-* convenience functions for referencing current page name, ticket #, tabname, etc

@@ -38,7 +38,8 @@ cd $jk/www
 
 #any header file that has been modified has string "jkuery enabled" in it so restore that one from backup which will remove the jkuery stuff
 #it will get re-added later if appropriate
-#when a customer does an upgrade this will fail as the header files will not have the string "jkuery enabled" and thus prevent the older .bak from being restored
+#if a customer does an upgrade this will fail as the header files will not have the string "jkuery enabled" and thus prevent the older .bak from being restored
+#in other words -- only restore the backup header file if the production file contains "jkuery enabled"
 cd /kbox/kboxwww/include
 for f in K*Header*.class.php
 do
@@ -65,7 +66,7 @@ do
     mv /kbox/kboxwww/include/$f.jkuery /kbox/kboxwww/include/$f
 done
 
-# map a permanent  samba share to file depot
+# map a permanent samba share to file depot
 #if it has jkuery in it then it's already configured so...
 # restore the backup (.nojkuery) that does NOT have jkuery in it
 grep -l "jkuery" /usr/local/etc/smb.conf | xargs cp /usr/local/etc/smb.conf.nojkuery 

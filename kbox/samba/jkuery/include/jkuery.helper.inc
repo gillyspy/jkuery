@@ -26,12 +26,14 @@ function printScriptForMe($portal,$type='script'){
   }
 } // end printScriptForMe;
 
-$file = basename(__FILE__,'.class.php'); // e.g. KAdminPageHeader;
+// $file = basename(__FILE__,'.class.php'); // e.g. KAdminPageHeader being called in the including file ; 
 $gfile = 'KGlobalPageHeader';
 
-printScriptForMe($file,'css'); 
-printScriptForMe($gfile,'css'); 
-printScriptForMe($file,'script'); 
-printScriptForMe($gfile,'script');
-
+if(preg_match('/.*Header$/',$headerfile)){
+ KBLog($headerfile.' header file included by jkuery');
+ printScriptForMe($gfile,'css');
+ printScriptForMe($headerfile,'css');
+ printScriptForMe($gfile,'script');
+ printScriptForMe($headerfile,'script');
+}
 ?>

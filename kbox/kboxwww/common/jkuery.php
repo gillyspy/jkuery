@@ -34,7 +34,7 @@ $_nop = array();
 $_p = array();
 
 function setParms($PARAMS, $OBJ){
-  KBLog('PARAMS: '.print_r($PARAMS,true));
+  //  KBLog('PARAMS: '.print_r($PARAMS,true));
 
   foreach ($PARAMS as $param) {
     global $$param;
@@ -56,7 +56,7 @@ function setParms($PARAMS, $OBJ){
 	array_push( $_p, $OBJ[$param]); 
       }
     } else { 
-      KBLog("not set $param : ".$OBJ[$param]);
+      //KBLog("not set $param : ".$OBJ[$param]);
     }
   }
 }
@@ -115,7 +115,7 @@ foreach ($fromGet as $get) {
     break;
   }
 } // end for each ; 
-KBLog('$_GET: '.print_r($_GET,true));
+//KBLog('$_GET: '.print_r($_GET,true));
 
 /* id can be an integer or a string.  
  * if it is a string then it will lookup the ID from the JKUERY.JSON table
@@ -154,7 +154,7 @@ KBLog('method: '.$_SERVER['REQUEST_METHOD']);
 */
 // instantiate the object; 
 $obj = new JkueryData($id,$org_id,$_SERVER['REQUEST_METHOD'],$query_type,$dbg); // instantiate the class;
-KBLog('after JkueryData instantiated');
+// KBLog('after JkueryData instantiated');
 if($valid_session){
 
   // token user allowed to see this object? ; 

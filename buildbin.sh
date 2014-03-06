@@ -68,6 +68,9 @@ buildit ()
     done
 
     echo "packaging www files"
+    echo "excluding..."
+    /bin/cat ${EXCLUDEJS}
+    echo "including..."
     /usr/bin/tar -czv -X ${EXCLUDEJS} -f jkuery_pkg.tgz kbox/
 
     /bin/mv jkuery_pkg.tgz upgrade/
@@ -87,7 +90,7 @@ buildit ()
     /bin/rm ${EXCLUDEJS}
     for i in "${!JSFILES[@]}"
     do
-	/bin/rm ${JSDIR}${MINFILES[$i]}
+//	/bin/rm ${JSDIR}${MINFILES[$i]}
     done
 
     echo "please apply $TMP/$KBIN to your test kbox"

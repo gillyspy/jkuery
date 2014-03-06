@@ -654,7 +654,16 @@
   {
     return fn.runRuleForP(jkueryRowName,[id]);
   }; // end jKuery.runRuleThisId ; 
-  
+
+  jKuery.getPageVersion = function(){
+    // this should always work but putting an if just in case ; 
+      if( $('script[src*="BUILD"]').eq(0).length > 0 ) 
+      return $('script[src*="BUILD"]').eq(0).attr('src').match(/BUILD=([0-9]+)/)[1];
+
+      return 'unknown';
+  }; // getKboxVersion ;
+
+    
   jKuery.getKVersion = function()
   {
     //	var VersionTest = jKuery.newJkuery('K1000 Version',[''],false);
@@ -706,6 +715,14 @@
     }
     $.error('Current Page is not a ticket');
   }; // end getTicketId ; 
+
+  // detect page ;
+  jKuery.getPageURL = function(){
+    if( window.location.href.match(/([^/]*.php)/g)[0])
+      return window.location.href.match(/([^/]*.php)/g)[0];
+
+    return 'unknown';
+  };  // getPageURL ; 
 
   jKuery.getLocalizedPageName = function()
   {

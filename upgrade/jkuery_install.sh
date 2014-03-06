@@ -133,6 +133,7 @@ chmod 444 /kbox/kboxwww/common/*kuery*.php
 find $jk/www -type f -name "*" -exec chown ftp:wheel '{}' \;
 find $jk/www -type f -name "*" -exec chmod 644 '{}' \;
 
+#directories are readonly
 find $jk/www -type d -name "*" -exec chown root:wheel '{}' \;
 find $jk/www -type d -name "*" -exec chmod 755 '{}' \;
 
@@ -141,6 +142,7 @@ find $jk/www -type f -name "readme*" -exec chown root:wheel {} \;
 find $jk/www -type f -name "readme*" -exec chmod 444 {} \;
 
 #read only markers and release files
+#customer can modify the header files
 #read only release directory
 chown ftp:wheel  $jk/www/markers/*
 chown root:wheel $jk/www/markers/*.rename
@@ -152,14 +154,16 @@ chmod 644 $jk/www/markers/*.rename
 chmod 644 $jk/www/$ver/*
 chmod 755 $jk/www/$ver
 
+#customer is a RW share for customer createad files
 #make customer dir (if not already exists)
 mkdir $jk/www/customer
+
+echo "moving existing customer files to customer writeable share"
 mv $jk/www/adminui $jk/www/customer/
 mv $jk/www/systemui $jk/www/customer/
 mv $jk/www/userui $jk/www/customer/
 mv $jk/www/other $jk/www/customer/
 
-echo "moving existing customer files to customer writeable share"
 find $jk/www -maxdepth 1 -type f -name "*" -exec mv {} $jk/www/customer/ \; -print
 chown ftp:wheel $jk/www/customer
 chmod 755 $jk/www/customer

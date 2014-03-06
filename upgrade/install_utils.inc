@@ -247,11 +247,11 @@ function escapeRgx($str){
 
 function getOriginsRgx(){
   $chk = (int)versionCompare( getJkueryVersion(), "2.0", true);
-  logu($chk);
+  //logu($chk);
   $rgx = false;
   if($chk >= 0){
     $sql = "select concat( '^(',group_concat(ORIGIN separator '|'), ')$' ) RGX from JKUERY.TOKENS UNION ALL select '^$' RGX";
-    logu($sql,true,true);
+    //logu($sql,true,true);
     
     try{
       $db = _u_dbConnect('KBSYS');
@@ -265,6 +265,20 @@ function getOriginsRgx(){
   } 
   return $rgx;
 }
+
+function checkSambaConflict(){
+  /*
+   * due to https://jira.kace.com/browse/K1-16295
+   */
+  exec("sed -E -n 's/.*workgroup[ ]*=[ ]*(.*)$/\1/Ip' /usr/local/etc/smb.conf", $workgroup,$code2);
+  exec("sed -E -n 's/.*netbios name[ ]*=[ ]*(.*)$/\1/Ip' /usr/local/etc/smb.conf", $netbios,$code1);
+  if( ($workgroup != $netbios) && ( ($code1 | $code2) == 0) ){
+    Logu("Samba warning: Until you change your hostname (NETBIOS name) the samba shares will not function correctly",true);
+    logu("Host name is " . $netbios);
+  }
+  return ;
+
+}  // checkSambaConflict
 
 function createHttpSed(){
   /* 

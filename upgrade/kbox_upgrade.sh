@@ -78,8 +78,10 @@ foreach($tryVersion as $serverVersion){
       logu("Unpacking Files, Initializing Headers, Sourcing your code, configuring Samba",true);
       // create support files if necessary
       createHttpSed();
-      checkSambaConflict();
       
+      checkSambaConflict();
+      logu( "Note: if you had previous jkuery files they will be moved to \\host\jkuery\customer",true);
+
       exec("/kbackup/upgrade/jkuery_install.sh >>".KB_LOG_DIR."update_log");
 
       //	Step 4) Give permissions

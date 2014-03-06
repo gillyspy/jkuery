@@ -270,11 +270,19 @@ function checkSambaConflict(){
   /*
    * due to https://jira.kace.com/browse/K1-16295
    */
-  exec("sed -E -n 's/.*workgroup[ ]*=[ ]*(.*)$/\1/Ip' /usr/local/etc/smb.conf", $workgroup,$code2);
-  exec("sed -E -n 's/.*netbios name[ ]*=[ ]*(.*)$/\1/Ip' /usr/local/etc/smb.conf", $netbios,$code1);
-  if( ($workgroup != $netbios) && ( ($code1 | $code2) == 0) ){
-    Logu("Samba warning: Until you change your hostname (NETBIOS name) the samba shares will not function correctly",true);
-    logu("Host name is " . $netbios);
+  exec("cat /usr/local/etc/smb.conf | grep '\[clientdrop\]' | wc -l",$clientdrop);
+
+  if($clientdrop[0] == "0"){
+    logu("Client shares are not enabled properly.  Please enable writeable client shares and reapply this patch");
+  }
+  
+  exec("/usr/bin/sed -E -n 's/.*workgroup[ ]*=[ ]*(.*)$/\\1/Ip' /usr/local/etc/smb.conf", $workgroup,$code2);
+  exec("/usr/bin/sed -E -n 's/.*netbios name[ ]*=[ ]*(.*)$/\\1/Ip' /usr/local/etc/smb.conf", $netbios,$code1);
+
+  if( $workgroup[0] == $netbios[0]){
+    logu("Samba warning: Until you change your hostname (NETBIOS name) the samba shares will not function correctly",true);
+    logu("NETBIOS / Host name is " . $netbios[0]);
+    logu("Workgroup name is " . $workgroup[0]);
   }
   return ;
 

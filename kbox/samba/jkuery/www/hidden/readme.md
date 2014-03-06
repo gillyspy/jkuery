@@ -31,6 +31,7 @@ However, you may need to re-install this patch so please read this entire sectio
 1. Backup your database and take a copy offline
 2. Your samba server will be restarted so make sure that no provisionings are taking place as they use that share
 3. enable the samba share and set the password in your organization's settings. 
+NOTE: make sure that your hostname is not "KBOX" as this will cause a samba conflict.
 If you have a multi-org box, you must do this step in ORG1. 
 4. Go to Settings->Server maintenance and apply the patch as an update. However, The kbox version will not change
 5. The server will redirect you back to the update log.  Scan the recent entries in that log for any 

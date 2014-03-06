@@ -158,7 +158,6 @@ chmod 755 $jk/www/$ver
 #make customer dir (if not already exists)
 mkdir $jk/www/customer
 
-echo "moving existing customer files to customer writeable share"
 mv $jk/www/adminui $jk/www/customer/
 mv $jk/www/systemui $jk/www/customer/
 mv $jk/www/userui $jk/www/customer/

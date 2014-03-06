@@ -90,7 +90,7 @@ buildit ()
     /bin/rm ${EXCLUDEJS}
     for i in "${!JSFILES[@]}"
     do
-//	/bin/rm ${JSDIR}${MINFILES[$i]}
+	/bin/rm ${JSDIR}${MINFILES[$i]}
     done
 
     echo "please apply $TMP/$KBIN to your test kbox"

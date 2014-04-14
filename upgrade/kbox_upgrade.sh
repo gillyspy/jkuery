@@ -42,7 +42,15 @@ include_once('./install_utils.inc');
 $debugit = true; 
 $version = "2.2";
 $verMatch = false;
-$tryVersion = array("5.3.53053", "5.4.70402", "5.4.76847", "5.5.90545", "5.5.85228", "5.5.90546");
+$tryVersion = array("5.3.53053",
+		    "5.4.70402",
+		    "5.4.76847",
+		    "5.4.76848",
+		    "5.5.90545",
+		    "5.5.90546",
+		    "5.5.90547",
+		    "5.5.85228",
+		    );
 $Kversion = get_version_number();
 
 

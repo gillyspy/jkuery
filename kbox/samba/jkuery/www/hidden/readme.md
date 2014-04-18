@@ -390,7 +390,7 @@ Object {H-1086503724: Object, H-766807184: Object}
 Even more useful is running `jKuery()` without any parameters which will give you a list of the cache and the parameters that are unique to a cache (e.g. request method,name, parms,query type, source) . 
 
 ```
-jKuerY();
+jKuery();
 ```
 
 You can access the data from a specific item from the cache directly with:

@@ -366,10 +366,7 @@ The difference in the above is that `setData()` will return the jKuery object.  
        .runAjax()  // returns Promise / Deferred
        .success(
            function(r){
-	       /* write the value into the webpage somewhere. r represents the response
-	       see the jQuery api for more on the [success callback](https://api.jquery.com/jQuery.ajax/)
-	       and also see the apis docs on [Deferred.done()](https://api.jquery.com/deferred.done/)
-	       because an AJAX request is a Deferred object as well
+	       // write the value into the webpage somewhere. r represents the response
 	       */
 	       $('#mydiv').text('d.json['somekeyvalue'])
 	   }
@@ -381,6 +378,7 @@ The difference in the above is that `setData()` will return the jKuery object.  
 	   }
 	); // end
 ```
+See the jQuery api for more on the [success callback](https://api.jquery.com/jQuery.ajax/) and  also see the apis docs on [Deferred.done()](https://api.jquery.com/deferred.done/) because an AJAX request is a Deferred object as well
 
 The "true" flag above means run the request immediately.  Set to false if you want to set debug or a callback first, etc
 
@@ -392,7 +390,7 @@ Object {H-1086503724: Object, H-766807184: Object}
 Even more useful is running `jKuery()` without any parameters which will give you a list of the cache and the parameters that are unique to a cache (e.g. request method,name, parms,query type, source) . 
 
 ```
-jKuer();
+jKuerY();
 ```
 
 You can access the data from a specific item from the cache directly with:

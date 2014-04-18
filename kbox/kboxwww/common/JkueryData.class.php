@@ -107,15 +107,19 @@ EOT;
   {
     switch(strtoupper($m)){
     case 'PUT':
+    case 'UPDATE':
       $this->sqlType = 'UPDATE';
       break;
     case 'DELETE':
       $this->sqlType = 'DELETE';
       break;
     case 'POST':
+    case 'INSERT':
       $this->sqlType = 'INSERT'; // or replace
       break;
     case 'GET':
+    case 'READ':
+    case 'SELECT':
     case 'HEAD';
     case 'OPTIONS':
       $this->sqlType = 'SELECT';

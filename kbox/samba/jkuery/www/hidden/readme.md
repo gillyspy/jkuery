@@ -131,7 +131,7 @@ The JSON that might come back might look like this:
 }
 ```
 
-some other example URLs to access this service are: 
+Some other example URLs to access this same service are: 
 
 *  using prepared query 105 passing parm "Gerald" and "kace.com"
  http://k1000/common/jkuery.php?id=105&query_type=sqlp&p1=Gerald&p2=kace.com
@@ -184,6 +184,18 @@ Note that HD_TICKET_RULE_ID is a legacy name for this column, but it is a report
 | 102 |                25 |   NULL | some report | report     |
 +-----+-------------------+--------+-------------+------------+
 ```
+
+Note: when use the `GET/SELECT` access to the API you typically want your query to return at least two rows.  If you only intend to obtain one row then do something like this (this example is actually an included example for the service call version):
+```
+select 'version' as VERSION, VALUE from KBSYS.SETTINGS where NAME = 'JKUERY_VERSION'
+```
+
+Notice how we put in a static string as the first column. This becomes the key for the result.  The output for this would be:
+```
+{
+ ...
+ "json" : {  "version" : "5.5.90548" }
+}
 
 Secure Access to the data API:
 ==============================
@@ -317,34 +329,81 @@ and more feedback shown in the K1000 server log
 By default the jKuery javascript object will cache requests using a hash.  
 e.g.
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true);`
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true);`
 
-this will run right away and then you can access the data via:
+the `true` flag above will cause it to run right away and then you can access the data by running it again and requesting the data via `getData()`.  The reason you cannot use `getData()` in the first call is that we are working with ajax so the request probably has not completed yet.  jQuery does have the ability to "force" a wait BUT that feature is deprecated so we do not use it here.  
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true).getData();
 
 Note this was equivalent to a request to: 
 `http://k1000/jkuery/my+user+query+test/Gerald/kace.com`
 
+Note a `GET` is also called a `SELECT`. in jKuery you can use either interchangeably for your convenience.  
+
 But anyway, if you do this now you are neither re-running the request NOR getting new data -- you are getting cached data:
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true);
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true);
     
 or this:
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).getData();
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true).getData();
 
-However, if you do either of these then you WILL re-run the request:
+The benefit of the cache is that you will not trigger unnecessary AJAX requests.  If you want to re-run the request against the source you can do that too....if you do either of these then you WILL re-run the request against the source. 
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).setData(optionalcallback) // returns this
-    
+```
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true).setData(optionalcallback) // returns "this" i.e. the jKuery instance
+```    
 or
 
-    jKuery('my user query test',['Gerald','kace.com'],'DELETE',true).runAjax(optionalcallback) // returns Promise
+```
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true).runAjax(optionalcallback) // returns Promise
+```
+
+The difference in the above is that `setData()` will return the jKuery object.  The `runAjax()` method will return a jQuery promise.  In *most* cases you want to return a jQuery promise here so that you can access the result in a more convenient way like this: 
+
+```
+    jKuery('my user query test',['Gerald','kace.com'],'GET',true)
+       .runAjax()  // returns Promise / Deferred
+       .success(
+           function(r){
+	       /* write the value into the webpage somewhere. r represents the response
+	       see the jQuery api for more on the [success callback](https://api.jquery.com/jQuery.ajax/)
+	       and also see the apis docs on [Deferred.done()](https://api.jquery.com/deferred.done/)
+	       because an AJAX request is a Deferred object as well
+	       */
+	       $('#mydiv').text('d.json['somekeyvalue'])
+	   }
+          )
+	.done(
+	   // identical to the success callback above.  can chain as many of these as you want;
+	   function(r){
+	       // do something with r.json
+	   }
+	); // end
+```
 
 The "true" flag above means run the request immediately.  Set to false if you want to set debug or a callback first, etc
 
-The cache can be inspected at jKuery.LastJSON.
+When debugging the cache can be inspected by running `jKuery.getLastJSON()`.  This will return an internal hash for each cached instance.  E.g.
+```
+Object {H-1086503724: Object, H-766807184: Object}
+```
+
+Even more useful is running `jKuery()` without any parameters which will give you a list of the cache and the parameters that are unique to a cache (e.g. request method,name, parms,query type, source) . 
+
+```
+jKuer();
+```
+
+You can access the data from a specific item from the cache directly with:
+```
+jKuery('H-1086503724').getData();
+```
+
+In production code you would never use this direct method. You would simply recall jKuery the same way you originally did and it would automatically grab the data from the cache (unless you use a method that forces it to re-do the AJAX request against the server).  However, seeing how your parameters were "translated" into cache parms can be useful -- for exammple seeing "SELECT" being converted to "GET".
+
+Note: The cache index value is not random. Given the same parameters the cache index value will be the same.
+
 Reloading the webpage obviously destroys everything including the cache.
 
 Using the jKuery javascript object with the data API:

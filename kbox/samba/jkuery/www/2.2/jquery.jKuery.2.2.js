@@ -174,9 +174,11 @@
 	        method = m;
                 break;
               case 'CREATE':
+	      case 'INSERT':
                 method = 'POST';
                 break;
               case 'READ':
+	      case 'SELECT':
                 method = 'GET';
                 break;
               case 'UPDATE':

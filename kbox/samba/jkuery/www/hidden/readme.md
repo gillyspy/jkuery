@@ -688,12 +688,6 @@ Revision History
 * more jKuery js object convenience functions for things like ticket #, change #, pagename, etc
 * wildcards for local permissions
 
-2.3
+Future
 ===
 * support for K1 6.0
-
-(future)
-========
-* support for K1000 6.1
-* support for K2000 ?.?
-* support for K3000 ?.?

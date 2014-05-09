@@ -1,9 +1,9 @@
 //this is just a comment and will not be parsed
-<script type="text/javascript" src="/jkuery/www/2.1/jquery.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.1/jquery.jKuery.min.2.1.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.1/jquery.aboutjKuery.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.1/default.js"></script>
-<link rel="stylesheet" href="/jkuery/www/2.1/default.css" />
+<script type="text/javascript" src="/jkuery/www/2.2/jquery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.2/jquery.jKuery.min.2.2.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.2/jquery.aboutjKuery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.2/default.js"></script>
+<link rel="stylesheet" href="/jkuery/www/2.2/default.css" />
 
 /*
 to use this file you must copy it and call the copy "KAdminPageHeader" (i.e. without the ".renamme" extension).  Every time you apply this kbin the rename files will be overwritten but your file will remain intact.  

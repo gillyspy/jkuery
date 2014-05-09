@@ -3,6 +3,7 @@ set @'jkver':='jKuery Version';
 set @jkorg:=(select min(ID) from KBSYS.ORGANIZATION);
 set @jkrole:=1;
 set @'kver':='K1000 Version';
+set @'sessionval':='Session Value';
 
 CREATE DATABASE IF NOT EXISTS `JKUERY` /*!40100 DEFAULT CHARACTER SET utf8 */;
 USE `JKUERY`;
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS  `JKUERY`.`JSON` (
   `MODIFIED` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`ID`),
   KEY `ORG_IDX` (`ORG`)
-) ENGINE=MyISAM AUTO_INCREMENT=100 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8;
 
 ALTER TABLE `JKUERY`.`JSON` CHANGE COLUMN `ID` `ID` INT UNSIGNED  NOT NULL AUTO_INCREMENT;
 ALTER TABLE `JKUERY`.`JSON` CHANGE COLUMN `ORG` `ORG` INT UNSIGNED NOT NULL DEFAULT '1' ;
@@ -44,7 +45,7 @@ BEGIN
 	END IF;
 	/* add a trigger to make new row for `NAME` unique by default when specified in an INSERT implicitly */
 	if new.NAME = '' then
-	   set new.NAME  =  LAST_INSERT_ID() + 1;
+	   set new.NAME  =  concat('jkuery',floor(rand(1000)*1000) );
         end if;	  
 END
 //
@@ -90,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `JSON_ROLE_JT` (
 
 -- mapping of given token for a remote connection to use an existing user 
 CREATE TABLE IF NOT EXISTS `JSON_TOKENS_JT` (
-  `JSON_ID` int(10) unsigned NOT NULL,
+  `JSON_ID` int(10) unsigned NOT NULL, /* not used as of 2.2 */
   `ORG_ID` int(10) unsigned NOT NULL,
   `TOKENS_ID` int(10) unsigned NOT NULL,
   `USER_ID` int(10) unsigned NOT NULL,
@@ -100,19 +101,47 @@ CREATE TABLE IF NOT EXISTS `JSON_TOKENS_JT` (
 
 -- insert demo query
 replace into `JKUERY`.`JSON`(`NAME`,`SQLstr`,`PURPOSE`, CREATED) values
- (@jkver,'select ''version'' as VERSION, VALUE from KBSYS.SETTINGS where NAME = ''JKUERY_VERSION'' ', 'Demo script for jkuery. Example URL would be jkuery/jKuery+Version', now());
+ (@jkver,
+ 'select ''version'' as VERSION, VALUE from KBSYS.SETTINGS where NAME = ''JKUERY_VERSION'' ',
+ 'Demo script for jkuery. Example URL would be jkuery/jKuery+Version', now());
 
 -- by default only the admin user in ORG1 can access it
 replace into JKUERY.JSON_ROLE_JT(JSON_ID, ORG_ID, ROLE_ID) select ID, @jkorg, @jkrole from JSON 
 where JSON.NAME=@jkver;
 
 
-
-replace into JKUERY.JSON(SQLstr,PURPOSE,QUERY_TYPE,NAME)  values ('select "version", concat(MAJOR,''.'',MINOR,''.'',BUILD) KVERSION
- from JKUERY.KBOX_VERSION ','return K1000 version','sqlp',@kver);
+replace into JKUERY.JSON(SQLstr,PURPOSE,QUERY_TYPE,NAME,CREATED)
+	values (
+	       'select "version", concat(MAJOR,''.'',MINOR,''.'',BUILD) KVERSION from JKUERY.KBOX_VERSION ',
+	       'return K1000 version',
+	       'sqlp',
+	       @kver,
+	       now()
+	);
 
 replace into JKUERY.JSON_ROLE_JT(JSON_ID, ORG_ID, ROLE_ID) select ID, @jkorg, @jkrole from JSON 
 where JSON.NAME=@kver;
 
+-- OEM service
+replace into JKUERY.JSON(SQLstr,PURPOSE,QUERY_TYPE,NAME,CREATED)
+	values (
+	       'select "value", ?',
+	       'return the first paramater provided',
+	       'sqlp',
+	       @sessionval,
+	       now()
+	);
+			
 -- create a view for version since OEM version shows the license key
 create view JKUERY.KBOX_VERSION as select MAJOR, MINOR,BUILD from KBSYS.KBOX_VERSION where ID=1;
+
+-- 
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `INSERTstr` text NULL AFTER `SQLstr` ;
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `UPDATEstr` text NULL AFTER `INSERTstr`;
+ALTER TABLE `JKUERY`.`JSON` ADD COLUMN `DELETEstr` text NULL AFTER  `UPDATEstr` ;
+
+/* allow all roles to access some default servies */
+replace into `JKUERY`.`JSON_ROLE_JT` (`JSON_ID`, `ORG_ID`, `ROLE_ID`)
+	select ID, 0, 0
+	from JKUERY.JSON
+	where NAME in (@jkver, @kver, @sessionval);

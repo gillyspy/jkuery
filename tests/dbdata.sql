@@ -1,0 +1,33 @@
+/*OTS ticket rule*/
+INSERT INTO `HD_TICKET_RULE` ( `MODIFIED`, `CREATED`, `TYPE`, `NEXT_RUN`, `FREQUENCY`, 
+`ENABLED`, 
+`ORDINAL`, `HD_QUEUE_ID`, `TITLE`, `NOTES`, `SELECT_QUERY`, `UPDATE_QUERY`, `SERIALIZED_QUERY_DATA`, `RECIPIENT`, `EMAIL_SUBJECT`, `EMAIL_TO_ATTRIBUTE`, `EMAIL_BODY`, `TICKET_COMMENT`, `TICKET_COMMENT_OWNERS_ONLY`, `LAST_RUN_LOG`, `SYSTEM_RULE`, `SYSTEM_RULE_PARMS`) values
+('2013-12-14 22:48:57','2013-12-14 06:20:10',10,'0000-00-00 00:00:00',5,
+1, /* enabled */
+100,1,'test for jkuery','','select HD_TICKET.ID, TITLE from HD_TICKET \njoin HD_TICKET_CHANGE C on C.HD_TICKET_ID = HD_TICKET.ID and C.ID = <CHANGE_ID>\n\n\nwhere\n1=1 and <TICKET_JOIN>','update \nHD_TICKET T join HD_TICKET_CHANGE C on C.HD_TICKET_ID = T.ID and C.COMMENT = \'seedforrule\'\n\nset TITLE = now(),\nC.COMMENT = replace(C.COMMENT, \'seedforrule\',\'some text in update\'), \nC.COMMENT_LOC = replace(C.COMMENT_LOC, \'seedforrule\', \'some text in update\')\n where T.ID = <TICKET_IDS>','','','','','','seedforrule',1,'','',NULL);
+
+/*test ticket */
+@q:=1;
+INSERT INTO `HD_TICKET` (`ID`, `TITLE`, `HD_PRIORITY_ID`, `HD_IMPACT_ID`, `MODIFIED`, `CREATED`, `OWNER_ID`, `SUBMITTER_ID`, `HD_STATUS_ID`, `HD_QUEUE_ID`, `HD_CATEGORY_ID`, `CC_LIST`, `ESCALATED`, `CUSTOM_FIELD_VALUE0`, `CUSTOM_FIELD_VALUE1`, `CUSTOM_FIELD_VALUE2`, `CUSTOM_FIELD_VALUE3`, `CUSTOM_FIELD_VALUE4`, `CUSTOM_FIELD_VALUE5`, `CUSTOM_FIELD_VALUE6`, `CUSTOM_FIELD_VALUE7`, `CUSTOM_FIELD_VALUE8`, `CUSTOM_FIELD_VALUE9`, `CUSTOM_FIELD_VALUE10`, `CUSTOM_FIELD_VALUE11`, `CUSTOM_FIELD_VALUE12`, `CUSTOM_FIELD_VALUE13`, `CUSTOM_FIELD_VALUE14`, `DUE_DATE`, `TIME_OPENED`, `TIME_CLOSED`, `TIME_STALLED`, `MACHINE_ID`, `SATISFACTION_RATING`, `SATISFACTION_COMMENT`, `RESOLUTION`, `ASSET_ID`, `PARENT_ID`, `IS_PARENT`, `APPROVER_ID`, `APPROVE_STATE`, `APPROVAL`, `APPROVAL_NOTE`, `SERVICE_TICKET_ID`) VALUES(2,'test ticket',
+(select max(ID) from HD_PRIORITY where HD_QUEUE_ID=@q), -- priority
+(select max(ID) from HD_IMPACT where HD_QUEUE_ID=@q), -- impact
+now(),
+now(),
+0,10,
+(select max(ID) from HD_STATUS where HD_QUEUE_ID=@q and STATE='STALLED'), -- status
+1,
+(select max(ID) from HD_CATEGORY where HD_QUEUE_ID=@q), -- category
+'','0000-00-00 00:00:00','UserInit Fix(44)','','','','','','','','','','','','','','',NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00','now()',2,0,'','',0,0,0,0,'closed','','',0);
+
+/* change for ticket */
+INSERT INTO `HD_TICKET_CHANGE` ( `HD_TICKET_ID`, `TIMESTAMP`, `USER_ID`, `COMMENT`, `COMMENT_LOC`, `DESCRIPTION`, `OWNERS_ONLY_DESCRIPTION`, `LOCALIZED_DESCRIPTION`, `LOCALIZED_OWNERS_ONLY_DESCRIPTION`, `MAILED`, `MAILED_TIMESTAMP`, `MAILER_SESSION`, `NOTIFY_USERS`, `VIA_EMAIL`, `OWNERS_ONLY`, `RESOLUTION_CHANGED`)
+values
+( (select last_insert_id()) , --id 
+now(),
+10,'','sprintf(_(stripslashes(\'\')), \'\');\n','Ticket Created\n','','sprintf(_(stripslashes(\'Ticket Created\')), \'\');\n','',1,
+now()
+0,'','',0,0);
+
+/* test report */ 
+INSERT INTO `SMARTY_REPORT` ( `MODIFIED`, `CREATED`, `TITLE`, `CATEGORY`, `DESCRIPTION`, `QUERY`, `CSV_SUPPORT`, `TXT_SUPPORT`, `HTML_SUPPORT`, `BUILT_IN`, `LINE_NUMBERS`, `COLUMNS_JSON`, `BREAK_COLUMNS`, `FIELDLIST`, `ORDERBY`, `ORDERSEQ`, `BREAKS`, `FF_JSON`, `BUSINESS_OBJECT_ID`, `ALL_ORGS`, `ATLEAST_ONE`, `XLS_SUPPORT`, `PDF_SUPPORT`) VALUES
+(now(),now(),'jkuery report test','','','select * from USER',1,1,1,0,1,'','',NULL,NULL,NULL,NULL,'','',NULL,1,1);

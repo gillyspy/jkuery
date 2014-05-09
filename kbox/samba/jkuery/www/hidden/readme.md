@@ -429,7 +429,7 @@ access to rules/reports might not have JKUERY.JSON access, but they probably hav
 and might change a rule/report name just to run that one instead. Rule and reports names are also not unique.
 so "name" is always a reference to the JKUERY row.  But the query that gets run for them comes FROM the rule's or report's definition
 
-if you call "jKuery(blah)" with the same request/ parms combination as a previous request on this page
+if you call `jKuery('servicefoo')` with the same request/ parms combination as a previous request on this page
 then you will be given a reference to the cached instance not a new instance.  All cached instances are stored
 in an internal object as a hash of their reqest/parms combo.   Cached instances have a way to re-run (runAjax method)
 and to update on an interval (setInterval)
@@ -439,13 +439,32 @@ AJAX requests are asynchronous (obvious) so a great way to call them in developm
 ```
     var myvar,
     callback = function(){
-			myvar = this.getData();
+			myvar = this.getData();  // or this.getData().json
 		};
     jKuery('Session Value',[':user_id']).setDebug(true).setData(  callback  );
 ```
 
 The reason this works is that the context for jKuery AJAX requests are always the instance of the jKuery object.
 When the request returns `myvar` will be set to the JSON data returned, even if an error is returned. 
+
+Another great way is what was talked about in the debugging section above with the use of the `runAjax()` method and the fact that it returns a Promise/Deferred Object.  Read that section for more info.
+
+Canned Variables:
+=================
+In version 2.1+ there are some canned variables that you can use. These are session variables and so are specific to the user that is logged in. 
+
+They are: 
+
+```
+:user_name
+:user_id
+:user_email
+:org_id
+:role_id
+:platform
+```
+
+They should all be obvious except for possible `:platform` which is the OS platform as detected via the User agent.  
 
 How to disable jkuery:
 ======================

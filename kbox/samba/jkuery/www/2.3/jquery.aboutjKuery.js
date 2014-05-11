@@ -55,7 +55,7 @@ if( window.$ && window.jQuery == window.$){
 	      $about.on('click', function(){
                 K.getJKVersion()
                   .setInterval(1000, function(){
-		    if($about.length > 0){
+		    if($('p.k-about-version').length > 0){
                       $jkuerypatched
                         .text('jKuery Version: '
 			      + this.getData().json.version

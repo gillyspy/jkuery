@@ -467,6 +467,35 @@ In the example above every 1000 milliseconds (1 second) an alert would pop up wi
 
 Note that a value of 0 will stop the timer.  Otherwise a value from 1-999 will default to 15 minutes (cuz that's just too fast otherwise).  Values >1000 will be honored as entered. 
 
+There is also an example in the "about" demo of using a timer.  There the about information is actually loaded by Ajax.  This is triggered when the about link is clicked.  The demo also attaches itself to the click event of the same link.  When the about link is clicked a timer starts. Essentially it keeps checking until the result of the Ajax is loaded and when it is it injects the jkuery information and then turns off the timer.  Something like this:
+
+```
+    /* detect if the link is there */
+    if( $('.k-modal[href*="about.php"]').length > 0 ){
+              var $about = $('.k-modal[href*="about.php"]'),
+	      $jkuerypatched = $('<span id="jkuerypatched">').css(cfg.style);
+	      /* attach a click handler to the link */
+	      $about.on('click', function(){
+	        /* run the convenience function to get the jKuery version.  This returns a jKuery object which we can
+		* chain with other jKuery methods.  In this case we chain setInterval with a callback that will keep
+		* looking for the loaded data every 1000 milliseconds.  
+		*/
+                K.getJKVersion()
+                  .setInterval(1000, function(){
+		    if($('p.k-about-version').length > 0){
+                      $jkuerypatched
+                        .text('jKuery Version: '
+			      + this.getData().json.version
+			      + ' with jQuery ' + jQuery.fn.jquery );
+	 	      /* when it exists prepend the strings to it */
+                      $('p.k-about-version').prepend('<br/>').prepend($jkuerypatched);
+		    /* turn the timer off */
+		    this.setInterval(0,function(){});
+		    }
+	          }); // setInterval ;
+              }); // on click ;
+	    }
+```	    
 
 Canned Variables:
 =================

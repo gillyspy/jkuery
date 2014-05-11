@@ -1,5 +1,5 @@
 Created by Gerald Gillespie 2014
-jkuery v2.2
+jkuery v2.3
 readme.md
 
 Welcome to jKuery!
@@ -74,14 +74,17 @@ OEM files you can restore them by re-applying the patch
 
 Database Access:
 ================
-Database access to the JKUERY dbspace is provided with 
+Database access to the JKUERY dbspace is provided.  You must set the password first and then initialize it. 
+You can set the password in the ini file at \\k1000\jkuery\hidden\jkuery.ini.  The format of the ini file must be:
+[jkuery]
+password=whatever
 
+Password must be compatible with mysql.  Some special characters may not be recognized. See mysql documentation. 
+
+After it is set you can connect with:
 username: jkuery
-
-password: <same as the "admin" user's ORG1 password at the time you last applied the kbin>
-
+password: <set in ini file>
 port:3306
-
 dbspace: JKUERY
 
 Data Access component (Data API):
@@ -368,7 +371,7 @@ The difference in the above is that `setData()` will return the jKuery object.  
            function(r){
 	       // write the value into the webpage somewhere. r represents the response
 	       */
-	       $('#mydiv').text('d.json['somekeyvalue'])
+	       $('#mydiv').text('r.json['somekeyvalue'])
 	   }
           )
 	.done(
@@ -448,6 +451,22 @@ The reason this works is that the context for jKuery AJAX requests are always th
 When the request returns `myvar` will be set to the JSON data returned, even if an error is returned. 
 
 Another great way is what was talked about in the debugging section above with the use of the `runAjax()` method and the fact that it returns a Promise/Deferred Object.  Read that section for more info.
+
+Using a Timer to keep a value up to date:
+=========================================
+jKuery has a built-in timer mechanism which can be used to keep a value up to date without re-running the request manually. 
+
+E.g.
+```
+    jKuery(1002,['test'],'GET',true).setInterval(1000,function(){
+        alert(this.getData());
+    });
+```
+
+In the example above every 1000 milliseconds (1 second) an alert would pop up with the value and the current time. Of course in this example the data doesn't change but you might have a request that does. 
+
+Note that a value of 0 will stop the timer.  Otherwise a value from 1-999 will default to 15 minutes (cuz that's just too fast otherwise).  Values >1000 will be honored as entered. 
+
 
 Canned Variables:
 =================
@@ -690,7 +709,12 @@ Revision History
 
 2.3
 ===
-* support for K1 6.0
+* support for K1 6.0.101863
+* if jQuery already exists on the kbox then jKuery will load and uses the jQuery library that ships with kbox by default (kbox 6.0 => jQuery 1.10)
+* fixed bugs in IE with ajax requests
+* you can now set the database password for the jkuery user.  See readme section on database.
+* there is a timer function called setInterval that can be used to keep a value up to date.   see readme section on "Timer"
+
 
 (future)
 ========

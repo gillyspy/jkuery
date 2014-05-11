@@ -11,7 +11,7 @@
 # TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
-ver=2.2
+ver=2.3
 
 #unpack marker files, default files, examples, etc
 #permissions will be updated below so -p is no longer necessary on the tar command
@@ -47,9 +47,9 @@ do
 
 done 
 
-
 # loop over all header files in include, back them up and inject the code that adds <script> and <link> tags
 # all header files are now modified in 2.1+ and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
+# this will do nothing in 6.0 and the smarty driven versions
 cd /kbox/kboxwww/include
 
 for f in K*Header*.php
@@ -65,6 +65,22 @@ do
     # make temporary file permanent
     mv /kbox/kboxwww/include/$f.jkuery /kbox/kboxwww/include/$f
 done
+
+# for smarty driven versions put this in the base template
+cd /kbox/kboxwww/smarty_templates/ui/base
+for f in base.tpl
+do 
+    cp $f $f.bak
+    # inject base file with header logic
+    sed -f /kbackup/upgrade/basetpl.inc < $f > $f.jkuery
+    # make file permanent
+    mv $f.jkuery $f
+
+    # change the global header to be compatible with those that use the base template (i.e. 6.x ) 
+    cp /kbox/samba/jkuery/www/markers/KGlobalPageHeader6 /kbox/samba/jkuery/www/markers/KGlobalPageHeader
+done
+
+
 
 # map a permanent samba share to file depot
 #if it has jkuery in it then it's already configured so...
@@ -127,6 +143,10 @@ chmod 444 $jk/include/jkuery*
 
 chown root:wheel /kbox/kboxwww/common/*kuery*.php
 chmod 444 /kbox/kboxwww/common/*kuery*.php
+
+#only relevant for 6.0
+chown root:wheel /kbox/kboxwww/common/JSON.php
+chmod 444 /kbox/kboxwww/common/JSON.php
 
 #ftp owns most file share files (including customer created files  such that can be written via samba or ftp
 #ftp user is forced as the proxy user for the samba connection

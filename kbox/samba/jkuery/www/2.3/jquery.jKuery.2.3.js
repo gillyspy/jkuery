@@ -49,7 +49,7 @@
       LastJSON = {}, // global cache of jKuery objects ;
       JSONlist = {}, // simplified list of the LastJSON cache;
       jKuery,
-      version = "2.2",
+      version = "2.3",
       m; // global hidden methods 
       
   
@@ -321,6 +321,11 @@
       },
       
       setHost : function(host){
+	  if (!window.location.origin) {
+	      window.location.origin = window.location.protocol + "//" +
+		  window.location.hostname +
+		  (window.location.port ? ':' + window.location.port: '');
+	  }
 	this.host = host || (this.host || window.location.origin);
 	// TODO even bother looking at KBSYS.SETTINGS ?  any way that this could ever be superior to window.location.origin?;
 	return this;
@@ -391,7 +396,7 @@
       return false;
     }
 
-    fn.set.call(this,['format','host','timeout']);
+    fn.set.call(this,['format','host','timeout','debug']);
     // no "set" functions for readonly variable: name, parms, source, qtype, method ; 
     this.getParms = function(){
       return parms;
@@ -449,7 +454,7 @@
     {
       var self = this;
       self.setState('complete');
-      if(interval > 1000){
+      if(interval >= 1000){
         self.setState('idle');
 	timer = setTimeout( 
 	  function(){
@@ -467,7 +472,7 @@
     // use the timer function to keep data set up to date.  Your callback might be to repopulate the item with data;
     this.setInterval = function(t,callback)
     {
-      t = (t > 1000 || t == 0) ? t : undefined;   
+      t = (t >= 1000 || t == 0) ? t : undefined;   
       /* min 1 second; use 0 to clear only;
        // an undefined time will yeield a 15 min timer
        // any new value between 0 and 1000 will keep the exising timer
@@ -610,7 +615,7 @@
   jKuery.getJKVersion = function()
   {
     var VersionTest = fn.runRuleForP('jKuery Version',[''],false); // even failed requests return the version;
-    VersionTest.setTimeout(1000);
+    VersionTest.setTimeout(1000).setRun(true).getData();
     return VersionTest;
     //TODO ; 
     /*
@@ -670,7 +675,7 @@
   {
     //	var VersionTest = jKuery.newJkuery('K1000 Version',[''],false);
     var VersionTest = fn.runRuleForP('K1000 Version',[]); 
-    VersionTest.setTimeout(1000);
+    VersionTest.setTimeout(1000).setRun(true).getData();
     return VersionTest;
   }; // end jKuery.getKVersion ;
 

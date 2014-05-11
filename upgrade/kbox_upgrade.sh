@@ -40,7 +40,7 @@ include_once('./install_utils.inc');
 
 // Use true to get additional script debug information, and prevent file deletion use false to turn it off.
 $debugit = true; 
-$version = "2.2";
+$version = "2.3";
 $verMatch = false;
 $tryVersion = array("5.3.53053",
 		    "5.4.70402",
@@ -51,7 +51,8 @@ $tryVersion = array("5.3.53053",
 		    "5.5.90546",
 		    "5.5.90547",
 		    "5.5.90548",
-		    "5.5.85228"
+		    "5.5.85228",
+		    "6.0.101863"
 		    );
 $Kversion = get_version_number();
 
@@ -97,7 +98,7 @@ foreach($tryVersion as $serverVersion){
       //	Step 4) Give permissions
       logu("Assigning permissions to JKUERY tables",true);
       if(dbGrants()){
-	logu("Permissions assigned for JKUERY.*",true);
+	logu("Permissions assigned for JKUERY.*.  To set the password for jkuery db access please see the readme file.",true);
 	$complete = true;
       } else {
 	logu("Failed to assign permissions",true);
@@ -113,6 +114,9 @@ foreach($tryVersion as $serverVersion){
     // Step 5) Cleanup
     if($complete) {
       logu("jKuery install completed with no errors.  Please view readme for next steps",true);
+      if( file_exists('/kbox/samba/jkuery/www/hidden/readme.md') ){
+	logu('Readme file is at \\host\jkuery\hidden\readme.md');
+      }
       exitCleanup(true);
     } else {
       exitCleanup(false);

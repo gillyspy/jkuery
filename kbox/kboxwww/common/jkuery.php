@@ -27,6 +27,17 @@
 require 'JkueryData.class.php';
 require 'JkueryUser.class.php';
 
+/* parse ini file for password every time */
+
+$inifile = '/kbox/samba/jkuery/www/hidden/jkuery.ini';
+if( file_exists($inifile) ) {
+  $ini = parse_ini_file (  $inifile , true ) ;
+  $pwd = $ini['jkuery']['password'] ;
+} 
+if( $pwd != '' ) {
+  $db = dbConnectSys()->Execute("set password for 'jkuery'@'%' = password(". esc_sql($pwd) . ")");
+}
+
 session_write_close();
 
 $_query = array();

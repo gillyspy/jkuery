@@ -47,6 +47,14 @@ do
 
 done 
 
+# now same restore for smarty driven versions (e.g. 6.0)
+cd /kbox/kboxwww/smarty_templates/ui/base
+for f in base.tpl
+do
+    # jkuery string is sufficient here 
+    grep -l "jkuery" $f | xargs cp $f.bak
+done
+
 # loop over all header files in include, back them up and inject the code that adds <script> and <link> tags
 # all header files are now modified in 2.1+ and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
 # this will do nothing in 6.0 and the smarty driven versions
@@ -70,17 +78,16 @@ done
 cd /kbox/kboxwww/smarty_templates/ui/base
 for f in base.tpl
 do 
+    # backup base template
     cp $f $f.bak
-    # inject base file with header logic
+    # strip jkuery from backed up file (due to bug with previous installer)
+    cat $f.bak | grep -v 'jkuery' > $f.baktmp
+    mv $f.baktmp $f.bak
+    # inject base file with header logic 
     sed -f /kbackup/upgrade/basetpl.inc < $f > $f.jkuery
     # make file permanent
     mv $f.jkuery $f
-
-    # change the global header to be compatible with those that use the base template (i.e. 6.x ) 
-    cp /kbox/samba/jkuery/www/markers/KGlobalPageHeader6 /kbox/samba/jkuery/www/markers/KGlobalPageHeader
 done
-
-
 
 # map a permanent samba share to file depot
 #if it has jkuery in it then it's already configured so...

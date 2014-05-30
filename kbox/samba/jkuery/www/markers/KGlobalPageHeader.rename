@@ -1,12 +1,15 @@
 //this is just a comment and will not be parsed
-<script type="text/javascript" src="/jkuery/www/2.2/jquery.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.2/jquery.jKuery.min.2.2.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.2/jquery.aboutjKuery.min.js"></script>
-<script type="text/javascript" src="/jkuery/www/2.2/default.js"></script>
-<link rel="stylesheet" href="/jkuery/www/2.2/default.css" />
+<script type="text/javascript" src="/jkuery/www/2.3/jquery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.3/jquery.jKuery.2.3.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.3/jquery.aboutjKuery.min.js"></script>
+<script type="text/javascript" src="/jkuery/www/2.3/default.js"></script>
+<link rel="stylesheet" href="/jkuery/www/2.3/default.css" />
 
 /*
 to use this file you must copy it and call the copy "KAdminPageHeader" (i.e. without the ".renamme" extension).  Every time you apply this kbin the rename files will be overwritten but your file will remain intact.  
+
+If you are on a 5.x kbox then you will likely keep it as is.
+If you are on a 6.x kbox then you should immediately remove the reference to jquery.min.js since 6.x ships with a version of the jQuery library and there will be a conflict.
 
 Part of the reason for using this technique is legacy compatibility with older versions of the plugin
 
@@ -17,6 +20,8 @@ Neither script nor link tags support external references.
 They MUST include locations that start with "/jkuery/www"
 
 If you have any typos in the markup then they will not be included.  
+
+If you have any odd control characters (whcih windows sometimes addes) the file will fail to parse.  So make sure to save the file as a unix formatted text file. 
 
 To know if it is working simply inspect the source of the page to see if they were included in the HEAD of the file. 
 

@@ -58,7 +58,7 @@ if( window.$ && window.jQuery == window.$){
 		    if($('p.k-about-version').length > 0){
                       $jkuerypatched
                         .text('jKuery Version: '
-			      + this.getData().json.version
+			      + this.getData().version
 			      + ' with jQuery ' + jQuery.fn.jquery );
                       $('p.k-about-version').prepend('<br/>').prepend($jkuerypatched);
 		    this.setInterval(0,function(){});

@@ -1,5 +1,6 @@
 s/<\/head>/\
-        \{include file='\/kbox\/samba\/jkuery\/www\/markers\/KGlobalPageHeader'\}\
+        \{ \* jkuery enabled \* \} \
+        \{include file='\/kbox\/samba\/jkuery\/www\/markers\/KGlobalPageHeader'\} \
         \{if \$kpage.body_id  eq "adminui"}\
                 \{include file='\/kbox\/samba\/jkuery\/www\/markers\/KAdminPageHeader'\}\
         \{elseif \$kpage.body_id eq "systemui"}\
@@ -9,4 +10,5 @@ s/<\/head>/\
         \{elseif \$kpage.body_id eq "welcome" }\
                 \{include file='\/kbox\/samba\/jkuery\/www\/markers\/KWelcomePageHeader'\}\
         \{\/if\}\
+        \{ \* end jkuery enabled \* \} \
 <\/head>/I

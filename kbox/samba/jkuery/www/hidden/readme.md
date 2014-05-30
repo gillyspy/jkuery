@@ -53,8 +53,8 @@ but not in the UI) that probably means that you modified the contents (or filena
 directories and do not have a file that is being referenced. Maybe you changed the name or moved it? 
 Re-applying the patch will remedy this or creating the needed *.js and *.css files.
 5. In the "\markers" directory you will find several *.rename files. You should not delete these files.  
-These are overrides for any scripts you have.  If you leave them in tact and 
-create no files in this directory then none of your scripts will be loaded.  
+These are overrides for any scripts you have.  If you have only .rename files and 
+create no base files in this directory then none of your scripts will be loaded.  
 This is useful if/when you are troubleshooting a kbox problem and need to 
 turn off all jkuery enhancements globally. see section "Activating Scripts By Example"
 6. The "\customer" directory is where you can put your own scripts and know for certain they will not be 
@@ -627,7 +627,7 @@ OEM Files in the \\k1000\jkuery\x.x share will be overwritten
 The database portion will only be updated / initialized if it does not exist or is not to spec
 Existing db entries will remain but may be updated
 5. If you changed any of the marker files by naming them or otherwise then do not worry. Your 
-relevant changes will trump them. Only the rename files will be replaced. 
+relevant changes will trump them. Only the rename files will be replaced.  If you are upgrading to a new version of jkuery (e.g. 2.2 to 2.3 then you likely want to update these marker files but must do so manually.  See the contents of the \markers\KGlobalPageHeader.rename file for instructions)
 6. After re-applying if you find that any access to your \\k1000\client* shares is different 
 then what you expect this is due to the patch restoring a previous configuration. To fix this 
 simply open up the webui and click "edit" then "save".  No change is necessary.  

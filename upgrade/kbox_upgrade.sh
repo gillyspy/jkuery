@@ -111,6 +111,10 @@ foreach($tryVersion as $serverVersion){
       $complete = false;
     }
 
+    // Step 4.5 clear Smarty Templates
+    logu("Deleting cached templates in order to rebuild with jkuery headers",true);
+    clearSmartyCache();
+    
     // Step 5) Cleanup
     if($complete) {
       logu("jKuery install completed with no errors.  Please view readme for next steps",true);

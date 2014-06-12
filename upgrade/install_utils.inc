@@ -7,7 +7,6 @@ include_once('common.inc');
 function clearSmartyCache(){
   //  smarty/ui/templates_c", SMARTY_TMP_DIR)
   if ( defined('SMARTY_TMP_DIR') ) {
-    logu("Deleting cached templates in order to rebuild with jkuery headers",true);
     exec('rm ' . SMARTY_TMP_DIR . '/smarty/ui/templates_c/*');
   }
 

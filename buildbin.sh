@@ -84,6 +84,7 @@ buildit ()
     echo "downloading kbin"
     /opt/local/bin/curl -o $TMP/$KBIN $FACTORY/tmp/$KBIN
     echo "$TMP/$KBIN file created"
+    /sbin/md5 $TMP/$KBIN
 
     echo "removing bin and cleaning up"
     /bin/rm ./$BIN

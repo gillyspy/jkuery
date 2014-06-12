@@ -191,11 +191,7 @@ mv $jk/www/userui $jk/www/customer/
 mv $jk/www/other $jk/www/customer/
 
 cd $jk/www
-find . -maxdepth 1 -type d -name "*" -not -path "*/2.[0-9]" -not -path "*/markers" -not -path "*/customer" -not -path "*/hidden" -exec mv {} $jk/www/customer/ \; -print
-#obsolete
-# find $jk/www -maxdepth 1 -type f -name "*" -exec mv {} $jk/www/customer/ \; -print
-
-
+find . -maxdepth 1 -type d -name "*" -not "." -not -path "*/2.[0-9]" -not -path "*/markers" -not -path "*/customer" -not -path "*/hidden" -exec mv {} $jk/www/customer/ \; -print
 
 chown -R ftp:wheel $jk/www/customer
 chmod -R 755 $jk/www/customer

@@ -169,7 +169,8 @@ $obj = new JkueryData($id,$org_id,$_SERVER['REQUEST_METHOD'],$query_type,$dbg); 
 if($valid_session){
 
   // token user allowed to see this object? ; 
-  if($obj->isUserAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
+  //  if($obj->isUserAllowedJSON($_SESSION[KB_USER_ID]) || !$needToken){
+    if($obj->isUserAllowedJSON($_SESSION[KB_USER_ID]) ){
     
     // does the definition exist? ;
     if($obj->validID()){

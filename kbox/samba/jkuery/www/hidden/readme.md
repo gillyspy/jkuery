@@ -512,7 +512,28 @@ They are:
 :platform
 ```
 
-They should all be obvious except for possible `:platform` which is the OS platform as detected via the User agent.  
+They should all be obvious except for possible `:platform` which is the OS platform as detected via the User agent.
+
+You can use these variables on the client side for convenience. 
+
+in 2.3+ these variables can be specified on the server-side. For each service (i.e. row in JKUERY.JSON) you specify the parms for each method.  So GET method query is in JKUERY.JSON.SQLstr the required parms are stored in JKUERY.JSON.SQLParms. 
+
+e.g. If you are requiring parms then you might have a definition like this:
++-----------+----------------------+---------
+| SQLParms  | NAME                 | SQLstr  
++-----------+----------------------+---------
+| ,:USER_ID | New Tickets In Queue | /* jkuery: New Tickets in Queue */ select Q.ID as QID, count(T.ID) CT, Q.NAME, OWNER.ID OWNER_ID from  HD_TICKET T join HD_QUEUE Q on Q.ID = T.HD_QUEUE_ID join HD_QUEUE_OWNER_LABEL_JT QOL on QOL.HD_QUEUE_ID = T.HD_QUEUE_ID join USER_LABEL_JT OL on OL.LABEL_ID = QOL.LABEL_ID join USER OWNER ON OWNER.ID = OL.USER_ID where  Q.ID = ? and OWNER.ID = ?  and  T.CREATED > ?  and  T.OWNER_ID = 0  group by Q.ID |
+
+In this query you are concerned that you only provide a result for new tickest on the queues this user is a (potential) owner of. Typically on the client side your request would look like this:
+
+jKuery('New Tickets In Queue', [ 20, ':user_id', '2014-07-22 08:30:00' ]).runAjax( function(){
+//do work with this.getData() here ;
+});
+
+However, a user could manipulate this and inject any user_id they wanted.  So now you can specify ":USER_ID" in the SQLParms column as above. Doing so, will force that parm to be used instead of what the client provides.  Notice the leading comma (",:USER_ID") -- SQLParms is a comma-separated string of parms.  Parms that are blanks means you want to keep as client-provided parms. In this case the first parm is the Queue ID and we want the client side to specify that. You might have noticed that the client side no longer needs to specify ':user_id' and that is correct.  The client still needs to provide the complete number of parameters but the second parm will be overwritten so the client request could now become:
+jKuery('New Tickets In Queue', [ 20, 'foo', '2014-07-22 08:30:00' ]).runAjax( function(){
+//do work with this.getData() here ;
+});
 
 How to disable jkuery:
 ======================

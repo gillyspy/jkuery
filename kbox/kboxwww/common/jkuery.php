@@ -61,10 +61,18 @@ function setParms($PARAMS, $OBJ){
 
       // generate param list for prepared statement ; 
       // TODO: properly loop through a parms array. but this is also needed for legacy formatted requests;
+      //check if the parm is an array of values;
       if("p" == substr($param, 0, 1) && (int)substr($param,1)>0){ 
-	array_push( $_nop,esc_sql($OBJ[$param]));
-	// do not sql_escape prepared variables ;
-	array_push( $_p, $OBJ[$param]); 
+        //test if value is an array
+        if( is_array( $OBJ[$param] ) ){
+	  $_nop = array_merge( $_nop, $OBJ[$param] );
+	  $_p = array_merge( $_p,   $OBJ[$param] );
+	  //KBLog('$_p: '. print_r($_p,true));
+        } else {
+	  array_push( $_nop,esc_sql($OBJ[$param]));
+	  // do not sql_escape prepared variables ;
+	  array_push( $_p, urldecode( $OBJ[$param] ) );
+        }
       }
     } else { 
       //KBLog("not set $param : ".$OBJ[$param]);
@@ -87,9 +95,22 @@ function getMethod(){
   case 'PUT':
   case 'DELETE':
     $arr = [];
-    foreach(explode('&',file_get_contents( 'php://input' )) as $parms){
+    foreach(explode('&', file_get_contents('php://input') ) as $parms){
       $parms = explode('=',$parms);
-      $arr[$parms[0]] = $parms[1];
+      //handle potential arrays in the values since PUT and DELETE do not do this automatically;
+      $left = explode('%5B%5D' , $parms[0] )[0];
+      // updating existing value;
+      if( array_key_exists( $left, $arr ) ){
+        // add to the array
+	if( is_array( $arr[ $left ] ) ){
+	  $arr[ $left][]= urldecode($parms[1]);
+	} else {
+	  //convert the value to an array and add it;
+	  $arr[ $left ] = [ urldecode($arr[ $left ]), urldecode($parms[1]) ];
+	}
+      } else {
+	$arr[ $left] = $parms[1];
+      }
     }
     return  array_merge($_GET, $arr);
   default:
@@ -98,6 +119,9 @@ function getMethod(){
 } // end getMethod; 
 
 $PARAMS = array('id','query_type','rule_id','p1','p2','p3','p4','p5','p6','p7','p8','p9','p0','jautoformat','loaded','token','username','debug');
+
+/* note to get more p values each p value can be an array of values. e.g. p1[]=foo&p1[]=bar */
+
 
 //put all parms for the prepared statement into variable;
 //this set the $_p from a GET or POST, PUT, DELETE

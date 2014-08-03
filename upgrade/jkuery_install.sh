@@ -168,6 +168,10 @@ find $jk/www -type d -name "*" -exec chmod 755 '{}' \;
 find $jk/www -type f -name "readme*" -exec chown root:wheel {} \;
 find $jk/www -type f -name "readme*" -exec chmod 444 {} \;
 
+#saw a problem at a customer and this was the fix
+chmod 755 $jk
+chmod 755 $jk/www
+
 #read only markers and release files
 #customer can modify the header files
 #read only release directory

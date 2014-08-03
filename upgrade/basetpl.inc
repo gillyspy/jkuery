@@ -10,5 +10,6 @@ s/<\/head>/\
         \{elseif \$kpage.body_id eq "welcome" }\
                 \{include file='\/kbox\/samba\/jkuery\/www\/markers\/KWelcomePageHeader'\}\
         \{\/if\}\
+        \{include file='\/kbox\/samba\/jkuery\/www\/2.3\/restorejQuery'\} \
         \{\* end jkuery enabled \*\} \
 <\/head>/I

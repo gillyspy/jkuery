@@ -421,7 +421,7 @@ included in jquery.jKuery.X.X.min.js file.  Some sample calls are:
     * method      type : string (GET, POST, PUT, etc)
 * var K = jKuery( url [, runnowflag])
     * url   type : string of full request URL
-    * runnowflag  type : boolean
+    * runnowflag  type : boolean  default is `false`
 
 * jKuery( requestname, parms )
 * jKuery( ruleID , parms)

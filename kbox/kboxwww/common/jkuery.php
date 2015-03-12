@@ -166,7 +166,6 @@ if(!$valid_session){  // try a token auth first.  this will allow requests from 
       $org_id = $org[ID];
       $needToken = true;
     } else {
-      $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
       // check login ;
       if(isset($_SESSION[KB_ORG])){
 	$org = setCurrentOrgForName($_SESSION[KB_ORG]);
@@ -175,6 +174,7 @@ if(!$valid_session){  // try a token auth first.  this will allow requests from 
 	$org = setCurrentOrgForID(1);
 	$org_id = 1;
       }
+      $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
     }
 } // end if; 
 

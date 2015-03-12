@@ -9,15 +9,22 @@ function clearSmartyCache(){
   if ( defined('SMARTY_TMP_DIR') ) {
     exec('rm ' . SMARTY_TMP_DIR . '/smarty/ui/templates_c/*');
   }
+  exec('/usr/bin/find /tmp -name "*php.tpl.php" -delete');
 
 } // clearSmartyCache ;
 
 function _u_dbConnect($dbname)
 {
     try {
-        $db = ADONewConnection('mysql');
+      if($dbname == 'KBSYS'){
+	$db = dbConnectSys();
+      } else {
+	$db = dbConnect();
+      }
+      /* $db = ADONewConnection('mysql');
         $db->NConnect('localhost', 'root', 'kbox19', $dbname);
         $ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
+      */
     } catch (Exception $e) {
         return NULL;
     }
@@ -52,7 +59,7 @@ function logu($str, $console=false)
 function getCurrentVersion()
 {
     // this gets called before we know what version we're running
-    $db = _u_dbConnect('KBSYS');
+  $db =  _u_dbConnect('KBSYS');
     if(!$db) {
         $db = _u_dbConnect('KBDB');
     }
@@ -69,7 +76,7 @@ function getCurrentVersion()
 
 function getOrgIds()
 {
-    $db = _u_dbConnect('KBSYS');
+    $db =  _u_dbConnect('KBSYS');
     $orgs = $db->GetCol("select ID from ORGANIZATION order by ID");
     return $orgs;
 }
@@ -95,7 +102,7 @@ function createJSD($file="jkuery.sql")
 {
   try{
     exec("/bin/cat /kbackup/upgrade/$file | /usr/local/bin/mysql -f -uroot -pkbox19 KBSYS >>".KB_LOG_DIR."update_log");
-    $db = _u_dbConnect('KBSYS');
+    $db =  _u_dbConnect('KBSYS');
     $sql = "select QUERY_TYPE from JKUERY.JSON";
     if($debugit === true){
       logu($sql,true);
@@ -117,7 +124,7 @@ function createJSD($file="jkuery.sql")
 
 function createBNames()
 {
-	$db = _u_dbConnect('KBSYS');
+	$db =  _u_dbConnect('KBSYS');
 	$ret=true;
 	$BNames = getBNames();
 	foreach($BNames as $u) {
@@ -142,7 +149,7 @@ function createBNames()
 function dbGrants(){
   $ret = false;
   try{
-    $db = _u_dbConnect('KBSYS');
+    $db =  _u_dbConnect('KBSYS');
     $pwd = esc_sql($db->GetOne("select concat('*',PASSWORD) from KBSYS.USER where ID=10"));
     $db->Execute("GRANT select, insert, delete, update on `JKUERY`.* to 'jkuery'@'%' identified by password $pwd");
     logu("'jkuery' user grants completed",true);
@@ -216,9 +223,11 @@ function restartServices(){
 function setJkueryVersion($ver="2.0"){
   $sql = "replace into KBSYS.SETTINGS(NAME,VALUE) values ('JKUERY_VERSION',".esc_sql($ver).")";
   try{
-    $db = _u_dbConnect('KBSYS');
+    $db =   _u_dbConnect('KBSYS');
     $db->Execute($sql);
   } catch(Exception $e){
+    logu("Problem setting jKuery version",true);
+    logu($e->GetMessage(),true);
     return false;
   }
   return true; 
@@ -229,7 +238,7 @@ function getJkueryVersion(){
   if( checkDBfilesExists("JKUERY") ){
     $sql = "select VALUE from KBSYS.SETTINGS where NAME = 'JKUERY_VERSION' UNION ALL select '1.2' VALUE";
     try{
-      $db = _u_dbConnect('KBSYS');
+    $db =   _u_dbConnect('KBSYS');
       $ver = $db->GetOne($sql);
     } catch(Exception $e){
       $ver = false;
@@ -262,7 +271,7 @@ function getOriginsRgx(){
     //logu($sql,true,true);
     
     try{
-      $db = _u_dbConnect('KBSYS');
+    $db =   _u_dbConnect('KBSYS');
       $rgx = $db->GetOne($sql) ;
       $rgx = preg_replace('/\//','\\/',preg_quote($rgx));
       //escapeRgx($rgx);

@@ -160,24 +160,24 @@ foreach ($fromGet as $get) {
 $jautoformat = isset($jautoformat) ? (int)$jautoformat : 1; // default is 1:auto ;
 
 if(!$valid_session){  // try a token auth first.  this will allow requests from another ORG that have a session to switch theirs;
-    if($token){
-      $valid_session = JkueryUser::LoginUserWithJkuery($token,$referrer);
-      $org = setCurrentOrgForName($_SESSION[KB_ORG]);
-      $org_id = $org[ID];
-      $needToken = true;
-    } else {
-      // check login ;
-      if(isset($_SESSION[KB_ORG])){
-	$org = setCurrentOrgForName($_SESSION[KB_ORG]);
-	$org_id = $org[ID];
-      } else {
-	$org = setCurrentOrgForID(1);
-	$org_id = 1;
-      }
-      $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
-    }
-} // end if; 
+  if($token){
+    $valid_session = JkueryUser::LoginUserWithJkuery($token,$referrer);
+    $needToken = true;
+  }
 
+  if( isset($_SESSION[KB_ORG]) && !!$_SESSION[KB_ORG]){
+    $org = setCurrentOrgForName($_SESSION[KB_ORG]);
+    $org_id = $org[ID];
+
+  } else if ( isset($_SESSION[KB_ORG_CURRENT]) && !! $_SESSION[KB_ORG_CURRENT][ID] ){
+    $org = setCurrentOrgForID( $_SESSION[KB_ORG_CURRENT][ID] );
+    $org_id = $org[ID];
+  } else {
+    $org = setCurrentOrgForID(1);
+    $org_id = 1;
+  }
+  $valid_session = isset($_SESSION[KB_USER_ID]) && isset($_SESSION[KB_ORG_CURRENT][DB]);
+} // end if;
 /*
 KBLog($id);
 KBLog($org_id);

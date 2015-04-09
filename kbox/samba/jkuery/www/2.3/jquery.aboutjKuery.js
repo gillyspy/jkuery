@@ -70,9 +70,7 @@ if( window.$ && window.jQuery == window.$){
               $this = $('#aboutLink'),
 	      iPrepared=false,
 	      $jkuerypatched = $('<span id="jkuerypatched">'+cfg.t()+'</span>'),
-	      $abouthidden=$('<iframe src="/common/about.php" id="abouthidden" height="745px"\
-                             width="348px" style="overflow:hidden;position: fixed; left: 10px; bottom:\
-                             30px;z-index: 10000;"></iframe>');
+	      $abouthidden=$('<iframe src="/common/about.php" id="abouthidden" height="745px" width="348px" style="overflow:hidden;position: fixed; left: 10px; bottom:30px;z-index: 10000;"></iframe>');
 	      $this.find('a').after('<a href="#">About K1000</a>').remove().end()
 	        .on('click.'+_cfg._n,'a',
 		    function(e) 

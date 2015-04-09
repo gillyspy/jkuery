@@ -66,7 +66,7 @@ buildit ()
 #some versions of tar (Mac) don't support --delete from tar balls so use exclude instead
 	echo "*${JSDIR}${JSFILES[$i]}*" >> ${EXCLUDEJS}
     done
-
+    sleep 10 
     echo "packaging www files"
     echo "excluding..."
     /bin/cat ${EXCLUDEJS}

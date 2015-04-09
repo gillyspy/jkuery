@@ -145,3 +145,20 @@ replace into `JKUERY`.`JSON_ROLE_JT` (`JSON_ID`, `ORG_ID`, `ROLE_ID`)
 	select ID, 0, 0
 	from JKUERY.JSON
 	where NAME in (@jkver, @kver, @sessionval);
+
+
+	
+/* a new column to allow default parms in the service definition
+e.g. :USER_ID as a server-side parm */
+ALTER TABLE `JKUERY`.`JSON` 
+ADD COLUMN `SQLParms` VARCHAR(255) NOT NULL DEFAULT '' AFTER `SQLstr`;
+
+ALTER TABLE `JKUERY`.`JSON` 
+ADD COLUMN `INSERTParms` VARCHAR(255) NOT NULL DEFAULT '' AFTER `INSERTstr`;
+
+ALTER TABLE `JKUERY`.`JSON` 
+ADD COLUMN `UPDATEParms` VARCHAR(255) NOT NULL DEFAULT '' AFTER `UPDATEstr`;
+
+ALTER TABLE `JKUERY`.`JSON` 
+ADD COLUMN `DELETEParms` VARCHAR(255) NOT NULL DEFAULT '' AFTER `DELETEstr`;
+

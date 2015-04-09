@@ -1,5 +1,5 @@
 #!/opt/local/bin/bash
-VER="2.2"
+VER="2.3"
 FILE="kbox_patch_jkueryV"
 FACTORY="http://engapps.test.kace.com/kbinfactory"
 MINIFIER="http://closure-compiler.appspot.com/compile"
@@ -66,7 +66,7 @@ buildit ()
 #some versions of tar (Mac) don't support --delete from tar balls so use exclude instead
 	echo "*${JSDIR}${JSFILES[$i]}*" >> ${EXCLUDEJS}
     done
-
+    sleep 10 
     echo "packaging www files"
     echo "excluding..."
     /bin/cat ${EXCLUDEJS}
@@ -84,6 +84,7 @@ buildit ()
     echo "downloading kbin"
     /opt/local/bin/curl -o $TMP/$KBIN $FACTORY/tmp/$KBIN
     echo "$TMP/$KBIN file created"
+    /sbin/md5 $TMP/$KBIN
 
     echo "removing bin and cleaning up"
     /bin/rm ./$BIN

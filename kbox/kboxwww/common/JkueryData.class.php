@@ -16,6 +16,7 @@ class JkueryData{
   private $org;
   private $purpose;
   private $format;
+  private $requiredparms;
   private $p; //parms; 
   private $debug;
   private $statusCode;
@@ -31,6 +32,7 @@ class JkueryData{
     $this->message = "";
     $this->format = 1;
     $this->purpose = "";
+    $this->requiredparms="";
     // TODO: have a status code instead ; 
     $this->statusCode = NULL;
     $this->status = NULL;
@@ -386,6 +388,24 @@ EOT;
     }
   } // end getMethodColName;
 
+private function getMethodRequiredParmsColName(){
+  switch($this->sqlType){
+  case 'INSERT':
+    return 'INSERTParms';
+    break;
+  case 'REPLACE':
+    return 'REPLACEParms';
+    break;
+  case 'UPDATE':
+    return 'DELETEParms';
+    break;
+  case 'SELECT':
+  default:
+    return 'SQLParms';
+    break;
+  }
+}  // end getMethodRequiredParmsColName() ;
+
   private function advertiseMethods(){
     $db = dbConnect();
     $sql = <<<EOT
@@ -404,13 +424,42 @@ EOT;
     return $db->GetOne($sql);
   } // end advertiseMethods ;
 
-  private function getJkueryStmt($col=false){
+  private function makeRequiredParmsArray( $parms ){
+    // $this->requiredparms contains a string.  convert that into an array;
+    if( $this->requiredparms == '' ){
+      return $parms;
+    }
+    $reqdparms = explode( ',', $this->requiredparms);
+    $ct = 0;
+    foreach($reqdparms as &$rp){
+      //trim the valid ones
+      $rp = trim($rp);
+
+      // remove the blanks
+      if( $rp == ''){
+	unset($reqdparms[$ct]);
+      }
+      $ct++;
+
+    }
+
+    $reqdparms = array_replace( $parms, $this->mapSessionVar( $reqdparms ) );
+    
+    return $reqdparms;
+
+  } // makeRequiredParmsArray();
+
+
+  
+private function getJkueryStmt($col=false, $parmscol=false){
     $id = esc_sql($this->id);
     $col = (!$col ?  $this->getMethodColName() : $col);
+    $parmscol = ( !$parmscol? $this->getMethodRequiredParmsColName() : $parmscol);
     $sql = <<<EOT
 	select 
 	       ORG, 
-	       ifnull($col,'') as runSQL, 
+	       ifnull($col,'') as runSQL,
+	       $parmscol as REQUIREDPARMS,
 	       PURPOSE, 
 	       QUERY_TYPE 
 	from JKUERY.JSON 
@@ -421,6 +470,7 @@ EOT;
       $p_sql = $db->GetRow($sql);
       $this->purpose = $p_sql['PURPOSE'];
       $this->org = $p_sql['ORG'];
+      $this->requiredparms = $p_sql['REQUIREDPARMS'];
       if($p_sql['runSQL'] == ''){
 	$this->Log("Matching Query Not Found for ID $id");
 	$this->message = "Matching Query Not Found for Method";
@@ -953,6 +1003,14 @@ EOT;
 	$this->Log('sqltype:'.$this->sqlType);
 	$this->Log(print_r($stmt,true));
 	// TODO: run statments appropriate to the method type;
+
+	/*combine the provided parms with required parms
+	 */
+
+	// build an array from $this->requiredparms   empty values will have no key
+	// use http://php.net/manual/en/function.array-replace.php
+	$p = $this->makeRequiredParmsArray( $p );
+	
 	switch($this->sqlType){
 	case 'INSERT':
 	  /* 

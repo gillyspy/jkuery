@@ -1,5 +1,5 @@
 Created by Gerald Gillespie 2014
-jkuery v2.2
+jkuery v2.3
 readme.md
 
 Welcome to jKuery!
@@ -53,8 +53,8 @@ but not in the UI) that probably means that you modified the contents (or filena
 directories and do not have a file that is being referenced. Maybe you changed the name or moved it? 
 Re-applying the patch will remedy this or creating the needed *.js and *.css files.
 5. In the "\markers" directory you will find several *.rename files. You should not delete these files.  
-These are overrides for any scripts you have.  If you leave them in tact and 
-create no files in this directory then none of your scripts will be loaded.  
+These are overrides for any scripts you have.  If you have only .rename files and 
+create no base files in this directory then none of your scripts will be loaded.  
 This is useful if/when you are troubleshooting a kbox problem and need to 
 turn off all jkuery enhancements globally. see section "Activating Scripts By Example"
 6. The "\customer" directory is where you can put your own scripts and know for certain they will not be 
@@ -74,14 +74,17 @@ OEM files you can restore them by re-applying the patch
 
 Database Access:
 ================
-Database access to the JKUERY dbspace is provided with 
+Database access to the JKUERY dbspace is provided.  You must set the password first and then initialize it. 
+You can set the password in the ini file at \\k1000\jkuery\hidden\jkuery.ini.  The format of the ini file must be:
+[jkuery]
+password=whatever
 
+Password must be compatible with mysql.  Some special characters may not be recognized. See mysql documentation. 
+
+After it is set you can connect with:
 username: jkuery
-
-password: <same as the "admin" user's ORG1 password at the time you last applied the kbin>
-
+password: <set in ini file>
 port:3306
-
 dbspace: JKUERY
 
 Data Access component (Data API):
@@ -368,7 +371,7 @@ The difference in the above is that `setData()` will return the jKuery object.  
            function(r){
 	       // write the value into the webpage somewhere. r represents the response
 	       */
-	       $('#mydiv').text('d.json['somekeyvalue'])
+	       $('#mydiv').text('r.json['somekeyvalue'])
 	   }
           )
 	.done(
@@ -418,7 +421,7 @@ included in jquery.jKuery.X.X.min.js file.  Some sample calls are:
     * method      type : string (GET, POST, PUT, etc)
 * var K = jKuery( url [, runnowflag])
     * url   type : string of full request URL
-    * runnowflag  type : boolean
+    * runnowflag  type : boolean  default is `false`
 
 * jKuery( requestname, parms )
 * jKuery( ruleID , parms)
@@ -449,6 +452,51 @@ When the request returns `myvar` will be set to the JSON data returned, even if 
 
 Another great way is what was talked about in the debugging section above with the use of the `runAjax()` method and the fact that it returns a Promise/Deferred Object.  Read that section for more info.
 
+Using a Timer to keep a value up to date:
+=========================================
+jKuery has a built-in timer mechanism which can be used to keep a value up to date without re-running the request manually. 
+
+E.g.
+```
+    jKuery(1002,['test'],'GET',true).setInterval(1000,function(){
+        alert(this.getData());
+    });
+```
+
+In the example above every 1000 milliseconds (1 second) an alert would pop up with the value and the current time. Of course in this example the data doesn't change but you might have a request that does. 
+
+Note that a value of 0 will stop the timer.  Otherwise a value from 1-999 will default to 15 minutes (cuz that's just too fast otherwise).  Values >1000 will be honored as entered. 
+
+There is also an example in the "about" demo of using a timer.  There the about information is actually loaded by Ajax.  This is triggered when the about link is clicked.  The demo also attaches itself to the click event of the same link.  When the about link is clicked a timer starts. Essentially it keeps checking until the result of the Ajax is loaded and when it is it injects the jkuery information and then turns off the timer.  Something like this:
+
+```
+    /* detect if the link is there */
+    if( $('.k-modal[href*="about.php"]').length > 0 ){
+              var $about = $('.k-modal[href*="about.php"]'),
+	      $jkuerypatched = $('<span id="jkuerypatched">').css(cfg.style);
+	      /* attach a click handler to the link */
+	      $about.on('click', function(){
+	        /* run the convenience function to get the jKuery version.  This returns a jKuery object which we can
+		* chain with other jKuery methods.  In this case we chain setInterval with a callback that will keep
+		* looking for the loaded data every 1000 milliseconds.  
+		*/
+                K.getJKVersion()
+                  .setInterval(1000, function(){
+		    if($('p.k-about-version').length > 0){
+                      $jkuerypatched
+                        .text('jKuery Version: '
+			      + this.getData().json.version
+			      + ' with jQuery ' + jQuery.fn.jquery );
+	 	      /* when it exists prepend the strings to it */
+                      $('p.k-about-version').prepend('<br/>').prepend($jkuerypatched);
+		    /* turn the timer off */
+		    this.setInterval(0,function(){});
+		    }
+	          }); // setInterval ;
+              }); // on click ;
+	    }
+```	    
+
 Canned Variables:
 =================
 In version 2.1+ there are some canned variables that you can use. These are session variables and so are specific to the user that is logged in. 
@@ -464,7 +512,28 @@ They are:
 :platform
 ```
 
-They should all be obvious except for possible `:platform` which is the OS platform as detected via the User agent.  
+They should all be obvious except for possible `:platform` which is the OS platform as detected via the User agent.
+
+You can use these variables on the client side for convenience. 
+
+in 2.3+ these variables can be specified on the server-side. For each service (i.e. row in JKUERY.JSON) you specify the parms for each method.  So GET method query is in JKUERY.JSON.SQLstr the required parms are stored in JKUERY.JSON.SQLParms. 
+
+e.g. If you are requiring parms then you might have a definition like this:
++-----------+----------------------+---------
+| SQLParms  | NAME                 | SQLstr  
++-----------+----------------------+---------
+| ,:USER_ID | New Tickets In Queue | /* jkuery: New Tickets in Queue */ select Q.ID as QID, count(T.ID) CT, Q.NAME, OWNER.ID OWNER_ID from  HD_TICKET T join HD_QUEUE Q on Q.ID = T.HD_QUEUE_ID join HD_QUEUE_OWNER_LABEL_JT QOL on QOL.HD_QUEUE_ID = T.HD_QUEUE_ID join USER_LABEL_JT OL on OL.LABEL_ID = QOL.LABEL_ID join USER OWNER ON OWNER.ID = OL.USER_ID where  Q.ID = ? and OWNER.ID = ?  and  T.CREATED > ?  and  T.OWNER_ID = 0  group by Q.ID |
+
+In this query you are concerned that you only provide a result for new tickest on the queues this user is a (potential) owner of. Typically on the client side your request would look like this:
+
+jKuery('New Tickets In Queue', [ 20, ':user_id', '2014-07-22 08:30:00' ]).runAjax( function(){
+//do work with this.getData() here ;
+});
+
+However, a user could manipulate this and inject any user_id they wanted.  So now you can specify ":USER_ID" in the SQLParms column as above. Doing so, will force that parm to be used instead of what the client provides.  Notice the leading comma (",:USER_ID") -- SQLParms is a comma-separated string of parms.  Parms that are blanks means you want to keep as client-provided parms. In this case the first parm is the Queue ID and we want the client side to specify that. You might have noticed that the client side no longer needs to specify ':user_id' and that is correct.  The client still needs to provide the complete number of parameters but the second parm will be overwritten so the client request could now become:
+jKuery('New Tickets In Queue', [ 20, 'foo', '2014-07-22 08:30:00' ]).runAjax( function(){
+//do work with this.getData() here ;
+});
 
 How to disable jkuery:
 ======================
@@ -579,7 +648,7 @@ OEM Files in the \\k1000\jkuery\x.x share will be overwritten
 The database portion will only be updated / initialized if it does not exist or is not to spec
 Existing db entries will remain but may be updated
 5. If you changed any of the marker files by naming them or otherwise then do not worry. Your 
-relevant changes will trump them. Only the rename files will be replaced. 
+relevant changes will trump them. Only the rename files will be replaced.  If you are upgrading to a new version of jkuery (e.g. 2.2 to 2.3 then you likely want to update these marker files but must do so manually.  See the contents of the \markers\KGlobalPageHeader.rename file for instructions)
 6. After re-applying if you find that any access to your \\k1000\client* shares is different 
 then what you expect this is due to the patch restoring a previous configuration. To fix this 
 simply open up the webui and click "edit" then "save".  No change is necessary.  
@@ -688,6 +757,17 @@ Revision History
 * more jKuery js object convenience functions for things like ticket #, change #, pagename, etc
 * wildcards for local permissions
 
-Future
+2.3
 ===
-* support for K1 6.0
+* support for K1 6.0, 6.1, 6.2, 6.3
+* if jQuery already exists on the kbox then jKuery will load and uses the jQuery library that ships with kbox by default (kbox 6.0 => jQuery 1.10)
+* fixed bugs in IE with ajax requests
+* you can now set the database password for the jkuery user.  See readme section on database.
+* there is a timer function called setInterval that can be used to keep a value up to date.   see readme section on "Timer"
+
+
+(future)
+========
+* support for K1000 6.4+
+* support for K2000 ?.?
+* support for K3000 ?.?

@@ -11,7 +11,7 @@
 # TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
-ver=2.2
+ver=2.3
 
 #unpack marker files, default files, examples, etc
 #permissions will be updated below so -p is no longer necessary on the tar command
@@ -47,9 +47,17 @@ do
 
 done 
 
+# now same restore for smarty driven versions (e.g. 6.0)
+cd /kbox/kboxwww/smarty_templates/ui/base
+for f in base.tpl
+do
+    # jkuery string is sufficient here 
+    grep -l "jkuery" $f | xargs cp $f.bak
+done
 
 # loop over all header files in include, back them up and inject the code that adds <script> and <link> tags
 # all header files are now modified in 2.1+ and dynamically link what you need. You decide what gets linked by creating <script> and <link> tags in the relevant /kbox/samba/jkuery/www/markers/*eader* file
+# this will do nothing in 6.0 and the smarty driven versions
 cd /kbox/kboxwww/include
 
 for f in K*Header*.php
@@ -64,6 +72,21 @@ do
     sed -f /kbackup/upgrade/header.inc < /kbox/kboxwww/include/$f > /kbox/kboxwww/include/$f.jkuery
     # make temporary file permanent
     mv /kbox/kboxwww/include/$f.jkuery /kbox/kboxwww/include/$f
+done
+
+# for smarty driven versions put this in the base template
+cd /kbox/kboxwww/smarty_templates/ui/base
+for f in base.tpl
+do 
+    # backup base template
+    cp $f $f.bak
+    # strip jkuery from backed up file (due to bug with previous installer)
+    cat $f.bak | grep -v 'jkuery' > $f.baktmp
+    mv $f.baktmp $f.bak
+    # inject base file with header logic 
+    sed -f /kbackup/upgrade/basetpl.inc < $f > $f.jkuery
+    # make file permanent
+    mv $f.jkuery $f
 done
 
 # map a permanent samba share to file depot
@@ -128,6 +151,10 @@ chmod 444 $jk/include/jkuery*
 chown root:wheel /kbox/kboxwww/common/*kuery*.php
 chmod 444 /kbox/kboxwww/common/*kuery*.php
 
+#only relevant for 6.0
+chown root:wheel /kbox/kboxwww/common/JSON.php
+chmod 444 /kbox/kboxwww/common/JSON.php
+
 #ftp owns most file share files (including customer created files  such that can be written via samba or ftp
 #ftp user is forced as the proxy user for the samba connection
 find $jk/www -type f -name "*" -exec chown ftp:wheel '{}' \;
@@ -140,6 +167,10 @@ find $jk/www -type d -name "*" -exec chmod 755 '{}' \;
 #read only readme files
 find $jk/www -type f -name "readme*" -exec chown root:wheel {} \;
 find $jk/www -type f -name "readme*" -exec chmod 444 {} \;
+
+#saw a problem at a customer and this was the fix
+chmod 755 $jk
+chmod 755 $jk/www
 
 #read only markers and release files
 #customer can modify the header files
@@ -163,9 +194,11 @@ mv $jk/www/systemui $jk/www/customer/
 mv $jk/www/userui $jk/www/customer/
 mv $jk/www/other $jk/www/customer/
 
-find $jk/www -maxdepth 1 -type f -name "*" -exec mv {} $jk/www/customer/ \; -print
-chown ftp:wheel $jk/www/customer
-chmod 755 $jk/www/customer
+cd $jk/www
+find . -maxdepth 1 -type d -name "*" -not "." -not -path "*/2.[0-9]" -not -path "*/markers" -not -path "*/customer" -not -path "*/hidden" -exec mv {} $jk/www/customer/ \; -print
+
+chown -R ftp:wheel $jk/www/customer
+chmod -R 755 $jk/www/customer
 find $jk/www/customer -name "*" -exec chown ftp:wheel '{}' \;
 find $jk/www/customer -type f -name "*" -exec chmod 644 '{}' \;
 find $jk/www/customer -type d -name "*" -exec chmod 755 '{}' \;

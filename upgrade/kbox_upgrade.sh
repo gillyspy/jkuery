@@ -40,19 +40,9 @@ include_once('./install_utils.inc');
 
 // Use true to get additional script debug information, and prevent file deletion use false to turn it off.
 $debugit = true; 
-$version = "2.3";
+$version = "2.4";
 $verMatch = false;
-$tryVersion = array("5.3.53053",
-		    "5.4.70402",
-		    "5.4.76847",
-		    "5.4.76848",
-		    "5.4.76849",
-		    "5.5.90545",
-		    "5.5.90546",
-		    "5.5.90547",
-		    "5.5.90548",
-		    "5.5.85228",
-		    "6.0.101863",
+$tryVersion = array("6.0.101863",
 		    "6.0.101864",
 		    "6.0.101865",
 		    "6.2.109329",

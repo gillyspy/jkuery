@@ -11,7 +11,7 @@
 # TODO use globals for $jk
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
-ver=2.3
+ver=2.4
 
 #unpack marker files, default files, examples, etc
 #permissions will be updated below so -p is no longer necessary on the tar command
@@ -19,7 +19,7 @@ ver=2.3
 rm /kbox/kboxwww/common/*kuery*.php
 #always overwrite base header include
 rm /kbox/samba/jkuery/include/jkuery*
-#always overwrite base release files
+#always overwrite base release files for the current version
 rm $jk/www/$ver/*
 #always overwrite base markers
 rm $jk/www/markers/*.rename
@@ -185,7 +185,7 @@ chmod 644 $jk/www/markers/*.rename
 chmod 644 $jk/www/$ver/*
 chmod 755 $jk/www/$ver
 
-#customer is a RW share for customer createad files
+#customer is a RW share for customer created files
 #make customer dir (if not already exists)
 mkdir $jk/www/customer
 

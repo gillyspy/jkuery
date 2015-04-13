@@ -221,6 +221,7 @@ function restartServices(){
 }
 
 function setJkueryVersion($ver="2.0"){
+  // primary key on KBSYS.SETTINGS is NAME so this works;
   $sql = "replace into KBSYS.SETTINGS(NAME,VALUE) values ('JKUERY_VERSION',".esc_sql($ver).")";
   try{
     $db =   _u_dbConnect('KBSYS');

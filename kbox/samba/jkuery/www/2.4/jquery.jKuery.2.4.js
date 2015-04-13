@@ -49,7 +49,7 @@
       LastJSON = {}, // global cache of jKuery objects ;
       JSONlist = {}, // simplified list of the LastJSON cache;
       jKuery,
-      version = "2.3",
+      version = "2.4",
       m; // global hidden methods 
       
   

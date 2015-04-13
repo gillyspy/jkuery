@@ -1,5 +1,5 @@
-Created by Gerald Gillespie 2014
-jkuery v2.3
+Created by Gerald Gillespie 2015
+jkuery v2.4
 readme.md
 
 Welcome to jKuery!
@@ -765,6 +765,8 @@ Revision History
 * you can now set the database password for the jkuery user.  See readme section on database.
 * there is a timer function called setInterval that can be used to keep a value up to date.   see readme section on "Timer"
 
+2.4
+===
 
 (future)
 ========

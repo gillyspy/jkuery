@@ -1,5 +1,5 @@
 #!/opt/local/bin/bash
-VER="2.3"
+VER="2.4"
 FILE="kbox_patch_jkueryV"
 FACTORY="http://engapps.test.kace.com/kbinfactory"
 MINIFIER="http://closure-compiler.appspot.com/compile"

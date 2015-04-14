@@ -1,5 +1,6 @@
 #!/opt/local/bin/bash
 VER="2.4"
+BETA="beta"
 FILE="kbox_patch_jkueryV"
 FACTORY="http://engapps.test.kace.com/kbinfactory"
 MINIFIER="http://closure-compiler.appspot.com/compile"
@@ -37,8 +38,8 @@ buildit ()
 {
     if [ -z "$1" ]
     then
-	BIN="$FILE$VER.bin"
-	KBIN="$FILE$VER.kbin"
+	BIN="$FILE$VER$BETA.bin"
+	KBIN="$FILE$VER$BETA.kbin"
 	echo "No argument supplied using $BIN"
     else 
 	KBIN="$1.kbin"
@@ -85,6 +86,8 @@ buildit ()
     /opt/local/bin/curl -o $TMP/$KBIN $FACTORY/tmp/$KBIN
     echo "$TMP/$KBIN file created"
     /sbin/md5 $TMP/$KBIN
+    echo "including kbin in source for easy retrieval for watchers"
+    /bin/cp $TMP/$KBIN .
 
     echo "removing bin and cleaning up"
     /bin/rm ./$BIN

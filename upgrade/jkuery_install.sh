@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # This file generates the includes and then puts them into the headers of the appropriate kbox pages
 # /kbox/kboxwww/include
 #/KAdminPageHeader.class.php
@@ -12,6 +12,10 @@
 jk=/kbox/samba/jkuery
 www=/jkuery/www/
 ver=2.4
+#get the current kbox version
+#TODO: get it from db
+kboxver=$(cat kversion.txt)
+nowdate=$(date "+%Y%m%d%H%M%S")
 
 #unpack marker files, default files, examples, etc
 #permissions will be updated below so -p is no longer necessary on the tar command
@@ -74,12 +78,41 @@ do
     mv /kbox/kboxwww/include/$f.jkuery /kbox/kboxwww/include/$f
 done
 
+
+# map a permanent samba share to file depot
+#if it has jkuery in it then it's already configured so...
+
+# backup the existing files being replaced
+declare -a BACKUPFILES=("/usr/local/etc/smb.conf" "/usr/local/etc/smb.conf.nojkuery");
+BACKUPFILES=("${BACKUPFILES[@]}" "/kbox/bin/kbserver/templates/smb.conf.template" "/kbox/kbin/kbserver/templates/smb.conf.template.nojkuery");
+BACKUPFILES=("${BACKUPFILES[@]}" "/usr/local/etc/apache22/httpd.conf" "/usr/local/etc/apache22/httpd.conf.nojkuery" "/kbox/bin/kbserver/templates/httpd22.conf")
+BACKUPFILES=("${BACKUPFILES[@]}" "/kbox/bin/kbserver/templates/httpd22.conf.nojkuery")
+BACKUPFILES=("${BACKUPFILES[@]}" "/kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template" "/kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template")
+BACKUPFILES=("${BACKUPFILES[@]}" "/kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template.nojkuery" "/kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template.nojkuery")
+
+#e.g.  /kbox/samba/jkuery/hidden/_backup/20150413231101.6.3.123456_smb.conf.nojkuery_2.4.md5
+for i in "${BACKUPFILES[@]}"
+do
+    
+    if [ -f "$i" ]; then
+	filemd5=$(md5 -q "$i")
+	basenom=$(basename "$i")
+	# using md5 will allow even the httpd conf templates from 6.3 (where two templates exist with same filename) to be backed up uniquely
+	cp "$i" "$jk"/www/hidden/_backup/"$nowdate"."$kboxver"_"$basenom"_"$ver"."$filemd5"
+    fi
+done
+
 # for smarty driven versions put this in the base template
 cd /kbox/kboxwww/smarty_templates/ui/base
 for f in base.tpl
-do 
+do
     # backup base template
     cp $f $f.bak
+    
+    filemd5=$(md5 -q $f)
+    #backup into new backup dir as well
+    cp $f "$jk"/www/hidden/_backup/"$nowdate"."$kboxver"_"$f"_"$ver"."$filemd5"
+    
     # strip jkuery from backed up file (due to bug with previous installer)
     cat $f.bak | grep -v 'jkuery' > $f.baktmp
     mv $f.baktmp $f.bak
@@ -87,10 +120,9 @@ do
     sed -f /kbackup/upgrade/basetpl.inc < $f > $f.jkuery
     # make file permanent
     mv $f.jkuery $f
+    
 done
 
-# map a permanent samba share to file depot
-#if it has jkuery in it then it's already configured so...
 # restore the backup (.nojkuery) that does NOT have jkuery in it
 grep -l "jkuery" /usr/local/etc/smb.conf | xargs cp /usr/local/etc/smb.conf.nojkuery 
 grep -l "jkuery" /kbox/bin/kbserver/templates/smb.conf.template | xargs cp /kbox/bin/kbserver/templates/smb.conf.template.nojkuery 
@@ -110,6 +142,9 @@ grep -l "jkuery" /usr/local/etc/apache2/httpd.conf | xargs cp /usr/local/etc/apa
 grep -l "jkuery" /usr/local/etc/apache22/httpd.conf | xargs cp /usr/local/etc/apache22/httpd.conf.nojkuery 
 grep -l "jkuery" /kbox/bin/kbserver/templates/httpd.conf.template | xargs cp /kbox/bin/kbserver/templates/httpd.conf.template.nojkuery
 grep -l "jkuery" /kbox/bin/kbserver/templates/httpd22.conf.template | xargs cp /kbox/bin/kbserver/templates/httpd22.conf.template.nojkuery
+#6.3+
+grep -l "jkuery" /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template | xargs cp /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template.nojkuery
+grep -l "jkuery" /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template | xargs cp /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template.nojkuery
 
 #make a new backup (or first time backup most likely)
 #apply jkuery changes to apache configuration file and template
@@ -128,20 +163,31 @@ mv ./httpd.conf.tmp /usr/local/etc/apache2/httpd.conf
 sed -f ./http.delete.sed.conf /usr/local/etc/apache22/httpd.conf > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /usr/local/etc/apache22/httpd.conf
 
-#do same to the templates
+#do same to the templates for various possibilities
 sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template
 sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template
+#6.3+ apache templates
+sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/10.0-amd64//httpd.conf.template
+sed -I .nojkuery -f ./httpd.sed.conf /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template
 
 #httpd.2.sed.conf is a dynamically generated file
 sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
 sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
+sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template
+sed -f ./httpd.2.sed.conf /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template
 
 sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/httpd.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd.conf.template
 sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/httpd22.conf.template > ./httpd.conf.tmp
 mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/httpd22.conf.template
+sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/7.0-amd64/httpd.conf.template
+sed -f http.delete.sed.conf /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template > ./httpd.conf.tmp
+mv ./httpd.conf.tmp /kbox/bin/kbserver/templates/10.0-amd64/httpd.conf.template
 
 #set permissions on all files from the tarball
 #all includes get 444 root:wheel

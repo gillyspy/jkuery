@@ -70,6 +70,8 @@ if($debugit===true) {
 
 foreach($tryVersion as $serverVersion){
   logu("- looking for KBOX compatible version $serverVersion ...");
+  // write version to a file
+  exec('echo ' . $Kversion . ' > ./kversion.txt');
   if(0 == versionCompare($Kversion, $serverVersion, false)) {
     $verMatch = true;
     logu("- found compatible version");

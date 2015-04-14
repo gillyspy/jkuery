@@ -194,10 +194,10 @@ function exitCleanup($jKueryDone=false){
 
 		// Done remove cleanup and remove script
 		if (file_exists('/kbackup/kbox_upgrade_pkg.gz')) {
-		  	exec("rm -f /kbackup/kbox_upgrade_pkg.gz");
+		  exec("rm -f /kbackup/kbox_upgrade_pkg.gz");
 		}
 		if (file_exists('/kbackup/upgrade')) {
-		  	exec("rm -rf /kbackup/upgrade");
+		  exec("rm -rf /kbackup/upgrade");
 		}
 	}
 

@@ -767,6 +767,9 @@ Revision History
 
 2.4
 ===
+* all config files are backed up to \\jkuery\hidden\_backup for easy troubleshooting.  Each time you reapply jkuery it will back up a new file so cleanup as needed. config files are small though
+* added support for 6.3 and fixed needing to reapply after a reboot
+* 
 
 (future)
 ========
